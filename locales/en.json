@@ -1,0 +1,417 @@
+
+{
+    "appTitle": "OmniNote - AI-Powered Notes",
+    "untitledNote": "Untitled Note",
+    "newFromTemplatePrefix": "New from",
+    "working": "Working...",
+    "error": "Error",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "warning": "Warning",
+    "searchPlaceholder": "Search notes...",
+    "sidebar": {
+        "notes": "Notes",
+        "tasks": "Tasks",
+        "templates": "Templates"
+    },
+    "noteList": {
+        "newNote": "New Note",
+        "newFromTemplate": "NEW FROM TEMPLATE",
+        "noTemplates": "No templates saved.",
+        "pinned": "Pinned",
+        "notes": "Notes",
+        "noNotesFound": "No Notes Found",
+        "tryDifferentSearch": "Try a different search term.",
+        "clickNewNote": "Click \"New Note\" to get started.",
+        "noContent": "No content",
+        "pin": "Pin note",
+        "unpin": "Unpin note",
+        "delete": "Delete note",
+        "select": "Select",
+        "sortBy": "Sort by",
+        "sort": {
+            "updated": "Date Updated",
+            "created": "Date Created",
+            "title": "Title"
+        },
+        "batch": {
+            "selected": "{{count}} selected",
+            "addTagPlaceholder": "Add a tag...",
+            "pin": "Pin",
+            "unpin": "Unpin",
+            "delete": "Delete"
+        }
+    },
+    "commandPalette": {
+        "title": "Command Palette",
+        "placeholder": "Type a command or search for a note...",
+        "noResults": "No results found.",
+        "navTip": "Use ↑↓ to navigate",
+        "closeTip": "ESC to close",
+        "tip": {
+            "text1": "Pro Tip: Press",
+            "kbd": "Ctrl+K",
+            "text2": "to open this palette anytime."
+        },
+        "categories": {
+            "actions": "Actions",
+            "notes": "Notes",
+            "ai": "AI Actions"
+        },
+        "actions": {
+            "newNote": "Create new note",
+            "toggleTheme": "Toggle light/dark theme",
+            "openSettings": "Open settings",
+            "openHelp": "Open help center"
+        }
+    },
+    "editor": {
+        "selectNote": "Select a note to start editing",
+        "or": "or",
+        "createNewNote": "Create a New Note",
+        "chooseIcon": "Choose note icon",
+        "titlePlaceholder": "Note Title",
+        "edit": "Edit",
+        "preview": "Preview",
+        "contentPlaceholder": "Start writing your note here... Link to other notes with [[Note Title]].",
+        "contentAriaLabel": "Note content",
+        "saveAsTemplate": "Save as Template",
+        "exportMarkdown": "Export as Markdown (.md)",
+        "words": "Words",
+        "characters": "Characters",
+        "lastUpdated": "Last updated",
+        "brokenLinkTitle": "Note not found"
+    },
+    "rightSidebar": {
+        "tabs": {
+            "ai": "AI Agents",
+            "graph": "Graph",
+            "history": "History"
+        },
+        "close": "Close sidebar",
+        "graphSettings": "Graph Settings",
+        "repulsion": "Repulsion",
+        "linkDistance": "Link Distance"
+    },
+    "graph": {
+        "empty": {
+            "title": "Your Knowledge Web",
+            "description": "Create notes and add common tags or [[Links]] to see how your ideas connect."
+        }
+    },
+    "history": {
+        "selectNote": "Select a note to view its history.",
+        "title": "Version History",
+        "versionFrom": "Version from {{date}}",
+        "restore": "Restore",
+        "empty": {
+            "title": "No History Yet",
+            "description": "Changes to this note will be saved here automatically."
+        }
+    },
+    "tasks": {
+        "groups": {
+            "overdue": "Overdue",
+            "today": "Today",
+            "upcoming": "Upcoming",
+            "noDate": "No Due Date",
+            "completed": "Completed"
+        },
+        "empty": {
+            "title": "No Tasks Found",
+            "description1": "Create tasks in your notes using `- [ ] Task name`.",
+            "description2": "Add a due date with `@{YYYY-MM-DD}`."
+        }
+    },
+    "templates": {
+        "delete": "Delete template",
+        "empty": {
+            "title": "No Templates Found",
+            "description": "Save a note as a template from the editor to get started."
+        }
+    },
+    "deleteModal": {
+        "title": "Delete Note",
+        "description": "Are you sure you want to delete this note? This action cannot be undone.",
+        "close": "Close dialog"
+    },
+    "settings": {
+        "title": "Settings",
+        "close": "Close settings",
+        "reset": "Reset All Settings to Default",
+        "general": {
+            "title": "General",
+            "language": "Language"
+        },
+        "tabs": {
+            "appearance": "Appearance",
+            "editor": "Editor",
+            "ai": "AI",
+            "data": "Data"
+        },
+        "appearance": {
+            "title": "Appearance",
+            "density": {
+                "label": "UI Density",
+                "compact": "Compact",
+                "default": "Default",
+                "comfortable": "Comfortable"
+            },
+            "font": {
+                "label": "Application Font",
+                "system": "System Default",
+                "serif": "Serif",
+                "monospace": "Monospace"
+            },
+            "reduceMotion": "Reduce Motion"
+        },
+        "editor": {
+            "title": "Editor",
+            "autoSaveDelay": "Auto-save Delay",
+            "fontSize": "Font Size",
+            "fontSizes": {
+                "small": "Small",
+                "medium": "Medium",
+                "large": "Large"
+            },
+            "defaultView": "Default View",
+            "focusMode": "Focus Mode",
+            "showWordCount": "Show Word Count"
+        },
+        "ai": {
+            "title": "AI Agent Defaults"
+        },
+        "data": {
+            "title": "Data Management",
+            "export": {
+                "title": "Export Data",
+                "description": "Download your data as a JSON file. Keep it safe as a backup.",
+                "button": "Export Data",
+                "types": {
+                    "all": "All",
+                    "notes": "Notes",
+                    "templates": "Templates",
+                    "settings": "Settings"
+                }
+            },
+            "import": {
+                "title": "Import Data",
+                "warning": "Importing will add new notes and templates from the file. It will not overwrite existing items.",
+                "button": "Import Data"
+            }
+        }
+    },
+    "help": {
+        "title": "Help Center",
+        "close": "Close help center",
+        "tabs": {
+            "guide": "Guide",
+            "faq": "FAQ",
+            "glossary": "Glossary",
+            "whatsNew": "What's New"
+        },
+        "guide": {
+            "title": "Step-by-Step Guide",
+            "intro": "Welcome to OmniNote! This guide will walk you through all the important features to get the most out of your intelligent note-taking app.",
+            "basics": {
+                "title": "Basics: Creating & Managing Notes",
+                "create": { "title": "Create a New Note", "description": "Click the \"New Note\" button in the left sidebar. You can create a blank note or choose a template from the dropdown menu." },
+                "edit": { "title": "Edit Notes", "description": "Select a note from the list to open it in the editor. The title and content are saved automatically as you type." },
+                "pin": { "title": "Pin Notes", "description": "Hover over a note in the list and click the icon to keep it at the top of your list." },
+                "personalize": { "title": "Personalize Notes", "description": "In the editor, click the icon to the left of the title to assign a fitting icon to your note." }
+            },
+            "linking": {
+                "title": "Connecting Your Ideas: Wiki-Links",
+                "description1": "Create direct links between your notes by typing the title of another note inside double square brackets. The title must match exactly (it is case-insensitive).",
+                "example": "An example note title",
+                "description2": "These links become clickable in the preview mode and create explicit connections in the Knowledge Graph, helping you build a true web of knowledge."
+            },
+            "tasks": {
+                "title": "Task Management",
+                "intro": "Capture tasks directly in your notes using Markdown syntax:",
+                "open": "My task",
+                "completed": "My completed task",
+                "dueDate": { "title": "Add Due Dates", "description": "Add a due date by appending `@{YYYY-MM-DD}` to the end of the task. Example: `- [ ] Prepare important presentation @{2024-12-24}`." },
+                "view": { "title": "Tasks View", "description": "Switch to the \"Tasks\" view in the left sidebar to see all your tasks, intelligently grouped by due date." }
+            },
+            "templates": {
+                "title": "Templates & Reusability",
+                "use": { "title": "Use Templates", "description": "Start a new note faster by choosing a template from the \"New Note\" dropdown." },
+                "save": { "title": "Save Your Own Templates", "description": "If you have a note structure you want to reuse, open the note in the editor and click" },
+                "manage": { "title": "Manage Templates", "description": "In the \"Templates\" view, you can use or delete your saved templates." }
+            },
+            "ai": {
+                "title": "The AI Agent Swarm",
+                "intro": "Open the right sidebar to access the AI agents. They help you enhance your notes.",
+                "recipes": { "title": "AI Recipes", "description": "Pre-built workflows for complex tasks like creating a blog post", "or": "or analyzing a meeting" },
+                "analysis": "Generates a summary and suggests relevant tags for your note.",
+                "creative": "Brainstorms new ideas based on your note's content.",
+                "image": "Creates an image based on the title and content of your note. Choose different styles for creative results.",
+                "plan": "Creates an actionable plan or checklist from your ideas.",
+                "more": "... and more agents for research, translation, and formatting!"
+            },
+            "graph": {
+                "title": "Visualizing Knowledge",
+                "description1": "The Knowledge Graph in the right sidebar visualizes the connections between your notes. Notes are linked by common tags (solid lines) or by direct [[Wiki-Links]] (dashed lines).",
+                "description2": "Click on a node in the graph to jump directly to the corresponding note."
+            },
+            "history": {
+                "title": "Version History",
+                "description": "Accidentally deleted something? No problem. The History view in the right sidebar saves previous versions of your notes. You can restore an older version with a single click on \"Restore\"."
+            }
+        },
+        "faq": {
+            "title": "Frequently Asked Questions (FAQ)",
+            "q1": { "question": "What is Markdown?", "answer": "Markdown is a simple markup language for formatting text. It allows you to create headings, lists, bold text, and more without taking your hands off the keyboard. For example: `# Heading` or `**bold**`." },
+            "q2": { "question": "How does the AI work? Is my data secure?", "answer": "OmniNote uses the Google Gemini API to provide its AI features. Your notes are sent to the API for processing. We store your data securely in your browser (localStorage) and only send it to the API when you actively run an AI agent. Your data is not used for model training." },
+            "q3": { "question": "Can I export my data?", "answer": "Yes! Go to Settings > Data Management. There, you can export all your notes and settings as a JSON file. This is a great way to create backups." },
+            "q4": { "question": "Does the app work offline?", "answer": "Yes, OmniNote is designed to work offline. All your notes are stored locally in your browser. You can create, edit, and view notes without an internet connection. However, the AI features require an active internet connection." }
+        },
+        "glossary": {
+            "title": "Glossary",
+            "term1": { "term": "AI Agent", "definition": "A specialized AI tool that performs a specific task, such as creating a summary, brainstorming ideas, or providing a translation." },
+            "term2": { "term": "AI Agent Swarm", "definition": "The collection of all available AI agents that work together to analyze and improve your notes." },
+            "term3": { "term": "AI Recipe", "definition": "A predefined, multi-step AI workflow that performs complex tasks with a single click, such as generating a full blog post from bullet points." },
+            "term4": { "term": "Knowledge Graph", "definition": "A visual representation of your notes as a network graph. Notes are nodes, and common tags create connections (edges) between them." },
+            "term5": { "term": "Markdown", "definition": "A lightweight markup language for formatting text using simple syntax. Fully supported in the OmniNote editor." }
+        },
+        "whatsNew": {
+            "title": "Latest Updates",
+            "intro": "Here's a look at the exciting new features we've recently added to OmniNote!",
+            "feature1": { "title": "New AI Recipe: Social Media Post", "description1": "Instantly transform your notes into engaging social media content! The new Social Post recipe in the AI sidebar drafts a concise post, adds relevant hashtags, and even suggests new tags for your note.", "description2": "Perfect for sharing your ideas on platforms like X, LinkedIn, or Mastodon." },
+            "feature2": { "title": "Collapsible Completed Tasks", "description1": "Your Tasks view just got cleaner. Completed tasks are now neatly tucked away in a collapsible \"Completed\" section at the bottom.", "description2": "This helps you focus on what's next, while still giving you easy access to your accomplishments." },
+            "feature3": { "title": "Enhanced Help Center", "description": "You're looking at it! We've revamped the Help Center with a new \"What's New\" tab and improved styling to make finding information easier and more pleasant." }
+        }
+    },
+    "aiPanel": {
+        "selectNote": "Select a note to use AI features.",
+        "settings": "Agent Settings",
+        "working": "Working...",
+        "apiKeyMissing": "API Key not configured. AI features are disabled.",
+        "error": {
+            "prefix": "Failed to run {{agentName}} agent. Please try again.",
+            "toast": "Error with {{agentName}} agent."
+        },
+        "actions": {
+            "prepend": "Prepend to note",
+            "addTags": "Add tags to note",
+            "append": "Append to note",
+            "appendChecklist": "Append as checklist",
+            "replace": "Replace Note Content",
+            "replaceNote": "Replace Note Content & Title"
+        },
+        "recipes": {
+            "title": "AI Recipes",
+            "blog": { "button": "Create Blog Post" },
+            "meeting": { "button": "Analyze Meeting" },
+            "social": { "button": "Social Post" },
+            "loading": "Brewing your recipe..."
+        },
+        "analysis": {
+            "title": "Analysis Agent",
+            "button": "Analyze Note",
+            "settings": {
+                "summaryLength": "Summary Length",
+                "short": "Short",
+                "detailed": "Detailed"
+            },
+            "summary": "Summary",
+            "tags": "Suggested Tags",
+            "summaryTitle": "AI Summary"
+        },
+        "creative": {
+            "title": "Creative Agent",
+            "button": "Brainstorm Ideas",
+            "settings": {
+                "ideaCount": "Number of Ideas"
+            },
+            "idea": "Idea"
+        },
+        "image": {
+            "title": "Image Agent",
+            "button": "Generate Image",
+            "settings": {
+                "style": "Image Style",
+                "aspectRatio": "Aspect Ratio"
+            },
+            "styles": {
+                "default": "Default",
+                "photorealistic": "Photorealistic",
+                "watercolor": "Watercolor",
+                "anime": "Anime"
+            },
+            "generating": "Painting your vision...",
+            "patience": "This might take a moment.",
+            "altText": "Generated Image"
+        },
+        "plan": {
+            "title": "Planner Agent",
+            "button": "Create Action Plan",
+            "settings": {
+                "detail": "Plan Detail",
+                "simple": "Simple",
+                "detailed": "Detailed"
+            },
+            "task": "Task",
+            "checklistTitle": "Action Plan"
+        },
+        "translate": {
+            "title": "Translator Agent",
+            "button": "Translate",
+            "settings": {
+                "targetLanguage": "Target Language"
+            },
+            "loading": "Translating...",
+            "translation": "Translation"
+        },
+        "format": {
+            "title": "Formatter Agent",
+            "button": "Format Note",
+            "loading": "Formatting...",
+            "formattedText": "Formatted text"
+        },
+        "research": {
+            "title": "Research Agent",
+            "button": "Find Resources",
+            "loading": "Researching...",
+            "sources": "Sources",
+            "notFound": "No online results found for this topic. Try refining your note content for better research results."
+        }
+    },
+    "toast": {
+        "noteSaved": "Note saved!",
+        "templateSaved": "Template \"{{title}}\" saved!",
+        "noteDeleted": "Note deleted.",
+        "exportSuccess": "Export successful!",
+        "exportFailed": "Export failed. See console for details.",
+        "noteHasNoContent": "Please select a note with content.",
+        "tagsApplied": "Tags applied successfully!",
+        "summaryPrepended": "Summary prepended to note!",
+        "checklistAppended": "Checklist appended to note!",
+        "noteContentUpdated": "Note content updated!",
+        "recipeResultApplied": "Note updated with recipe result!",
+        "imageAppended": "Image appended to note!",
+        "copied": "{{type}} copied to clipboard!",
+        "noteRestored": "Note restored to a previous version!",
+        "selectFile": "Please select a file to import.",
+        "fileReadError": "File could not be read.",
+        "invalidFileFormat": "Invalid file format: must be a JSON object.",
+        "importSuccess": "Import successful!",
+        "importReport": "Import complete: {{notes}} notes and {{templates}} templates added.",
+        "importFailedDetails": "Import failed: {{message}}",
+        "batchDeleteSuccess": "{{count}} notes deleted.",
+        "batchPinSuccess": "{{count}} notes pinned.",
+        "batchUnpinSuccess": "{{count}} notes unpinned.",
+        "batchTagSuccess": "Tag '{{tag}}' added to {{count}} notes.",
+        "emptyTagError": "Cannot add an empty tag.",
+        "aiAgentTriggered": "{{agentName}} triggered for current note."
+    },
+    "languages": {
+        "english": "English",
+        "german": "German",
+        "spanish": "Spanish",
+        "french": "French",
+        "japanese": "Japanese",
+        "chinese": "Chinese"
+    }
+}

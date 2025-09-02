@@ -1,0 +1,416 @@
+
+{
+    "appTitle": "OmniNote - KI-gestützte Notizen",
+    "untitledNote": "Unbenannte Notiz",
+    "newFromTemplatePrefix": "Neu aus",
+    "working": "Arbeite...",
+    "error": "Fehler",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "warning": "Warnung",
+    "searchPlaceholder": "Notizen suchen...",
+    "sidebar": {
+        "notes": "Notizen",
+        "tasks": "Aufgaben",
+        "templates": "Vorlagen"
+    },
+    "noteList": {
+        "newNote": "Neue Notiz",
+        "newFromTemplate": "NEU AUS VORLAGE",
+        "noTemplates": "Keine Vorlagen gespeichert.",
+        "pinned": "Angeheftet",
+        "notes": "Notizen",
+        "noNotesFound": "Keine Notizen gefunden",
+        "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff.",
+        "clickNewNote": "Klicken Sie auf \"Neue Notiz\", um zu beginnen.",
+        "noContent": "Kein Inhalt",
+        "pin": "Notiz anheften",
+        "unpin": "Notiz lösen",
+        "delete": "Notiz löschen",
+        "select": "Auswählen",
+        "sortBy": "Sortieren nach",
+        "sort": {
+            "updated": "Datum aktualisiert",
+            "created": "Datum erstellt",
+            "title": "Titel"
+        },
+        "batch": {
+            "selected": "{{count}} ausgewählt",
+            "addTagPlaceholder": "Tag hinzufügen...",
+            "pin": "Anheften",
+            "unpin": "Lösen",
+            "delete": "Löschen"
+        }
+    },
+    "commandPalette": {
+        "title": "Befehlspalette",
+        "placeholder": "Befehl eingeben oder Notiz suchen...",
+        "noResults": "Keine Ergebnisse gefunden.",
+        "navTip": "Navigieren mit ↑↓",
+        "closeTip": "Schließen mit ESC",
+        "tip": {
+            "text1": "Profi-Tipp: Drücken Sie",
+            "kbd": "Strg+K",
+            "text2": "um die Palette jederzeit zu öffnen."
+        },
+        "categories": {
+            "actions": "Aktionen",
+            "notes": "Notizen",
+            "ai": "KI-Aktionen"
+        },
+        "actions": {
+            "newNote": "Neue Notiz erstellen",
+            "toggleTheme": "Helles/Dunkles Design wechseln",
+            "openSettings": "Einstellungen öffnen",
+            "openHelp": "Hilfecenter öffnen"
+        }
+    },
+    "editor": {
+        "selectNote": "Wählen Sie eine Notiz zum Bearbeiten aus",
+        "or": "oder",
+        "createNewNote": "Eine neue Notiz erstellen",
+        "chooseIcon": "Notiz-Symbol auswählen",
+        "titlePlaceholder": "Notiztitel",
+        "edit": "Bearbeiten",
+        "preview": "Vorschau",
+        "contentPlaceholder": "Beginnen Sie hier... Verlinken Sie andere Notizen mit [[Notiztitel]].",
+        "contentAriaLabel": "Notizinhalt",
+        "saveAsTemplate": "Als Vorlage speichern",
+        "exportMarkdown": "Als Markdown (.md) exportieren",
+        "words": "Wörter",
+        "characters": "Zeichen",
+        "lastUpdated": "Zuletzt aktualisiert",
+        "brokenLinkTitle": "Notiz nicht gefunden"
+    },
+    "rightSidebar": {
+        "tabs": {
+            "ai": "KI-Agenten",
+            "graph": "Graph",
+            "history": "Verlauf"
+        },
+        "close": "Seitenleiste schließen",
+        "graphSettings": "Graph-Einstellungen",
+        "repulsion": "Abstoßung",
+        "linkDistance": "Link-Abstand"
+    },
+    "graph": {
+        "empty": {
+            "title": "Ihr Wissensnetz",
+            "description": "Erstellen Sie Notizen und fügen Sie gemeinsame Tags oder [[Links]] hinzu, um zu sehen, wie Ihre Ideen zusammenhängen."
+        }
+    },
+    "history": {
+        "selectNote": "Wählen Sie eine Notiz aus, um deren Verlauf anzuzeigen.",
+        "title": "Versionsverlauf",
+        "versionFrom": "Version vom {{date}}",
+        "restore": "Wiederherstellen",
+        "empty": {
+            "title": "Noch kein Verlauf",
+            "description": "Änderungen an dieser Notiz werden hier automatisch gespeichert."
+        }
+    },
+    "tasks": {
+        "groups": {
+            "overdue": "Überfällig",
+            "today": "Heute",
+            "upcoming": "Anstehend",
+            "noDate": "Ohne Datum",
+            "completed": "Abgeschlossen"
+        },
+        "empty": {
+            "title": "Keine Aufgaben gefunden",
+            "description1": "Erstellen Sie Aufgaben in Ihren Notizen mit `- [ ] Aufgabenname`.",
+            "description2": "Fügen Sie ein Fälligkeitsdatum mit `@{JJJJ-MM-TT}` hinzu."
+        }
+    },
+    "templates": {
+        "delete": "Vorlage löschen",
+        "empty": {
+            "title": "Keine Vorlagen gefunden",
+            "description": "Speichern Sie eine Notiz als Vorlage im Editor, um loszulegen."
+        }
+    },
+    "deleteModal": {
+        "title": "Notiz löschen",
+        "description": "Sind Sie sicher, dass Sie diese Notiz löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "close": "Dialog schließen"
+    },
+    "settings": {
+        "title": "Einstellungen",
+        "close": "Einstellungen schließen",
+        "reset": "Alle Einstellungen auf Standard zurücksetzen",
+        "general": {
+            "title": "Allgemein",
+            "language": "Sprache"
+        },
+        "tabs": {
+            "appearance": "Ansicht",
+            "editor": "Editor",
+            "ai": "KI",
+            "data": "Daten"
+        },
+        "appearance": {
+            "title": "Erscheinungsbild",
+            "density": {
+                "label": "UI-Dichte",
+                "compact": "Kompakt",
+                "default": "Standard",
+                "comfortable": "Bequem"
+            },
+            "font": {
+                "label": "Anwendungsschriftart",
+                "system": "Systemstandard",
+                "serif": "Serif",
+                "monospace": "Monospace"
+            },
+            "reduceMotion": "Bewegung reduzieren"
+        },
+        "editor": {
+            "title": "Editor",
+            "autoSaveDelay": "Autom. Speichern nach",
+            "fontSize": "Schriftgröße",
+            "fontSizes": {
+                "small": "Klein",
+                "medium": "Mittel",
+                "large": "Groß"
+            },
+            "defaultView": "Standardansicht",
+            "focusMode": "Fokusmodus",
+            "showWordCount": "Wortzahl anzeigen"
+        },
+         "ai": {
+            "title": "KI-Agenten-Standards"
+        },
+        "data": {
+            "title": "Datenverwaltung",
+            "export": {
+                "title": "Daten exportieren",
+                "description": "Laden Sie Ihre Daten als JSON-Datei herunter. Bewahren Sie sie als Backup sicher auf.",
+                "button": "Daten exportieren",
+                 "types": {
+                    "all": "Alles",
+                    "notes": "Notizen",
+                    "templates": "Vorlagen",
+                    "settings": "Einstellungen"
+                }
+            },
+            "import": {
+                "title": "Daten importieren",
+                "warning": "Beim Importieren werden neue Notizen und Vorlagen aus der Datei hinzugefügt. Bestehende Elemente werden nicht überschrieben.",
+                "button": "Daten importieren"
+            }
+        }
+    },
+    "help": {
+        "title": "Hilfecenter",
+        "close": "Hilfecenter schließen",
+        "tabs": {
+            "guide": "Anleitung",
+            "faq": "FAQ",
+            "glossary": "Glossar",
+            "whatsNew": "Was ist neu"
+        },
+        "guide": {
+            "title": "Schritt-für-Schritt-Anleitung",
+            "intro": "Willkommen bei OmniNote! Diese Anleitung führt Sie durch alle wichtigen Funktionen, um das Beste aus Ihrer intelligenten Notiz-App herauszuholen.",
+            "basics": {
+                "title": "Grundlagen: Notizen erstellen & verwalten",
+                "create": { "title": "Neue Notiz erstellen", "description": "Klicken Sie auf die Schaltfläche \"Neue Notiz\" in der linken Seitenleiste. Sie können eine leere Notiz erstellen oder eine Vorlage aus dem Dropdown-Menü auswählen." },
+                "edit": { "title": "Notizen bearbeiten", "description": "Wählen Sie eine Notiz aus der Liste, um sie im Editor zu öffnen. Titel und Inhalt werden während der Eingabe automatisch gespeichert." },
+                "pin": { "title": "Notizen anheften", "description": "Bewegen Sie den Mauszeiger über eine Notiz in der Liste und klicken Sie auf das Symbol, um sie oben in Ihrer Liste zu halten." },
+                "personalize": { "title": "Notizen personalisieren", "description": "Klicken Sie im Editor auf das Symbol links neben dem Titel, um Ihrer Notiz ein passendes Symbol zuzuweisen." }
+            },
+            "linking": {
+                "title": "Ideen verbinden: Wiki-Links",
+                "description1": "Erstellen Sie direkte Links zwischen Ihren Notizen, indem Sie den Titel einer anderen Notiz in doppelte eckige Klammern setzen. Der Titel muss exakt übereinstimmen (Groß-/Kleinschreibung wird ignoriert).",
+                "example": "Ein Beispiel-Notiztitel",
+                "description2": "Diese Links werden im Vorschaumodus klickbar und erzeugen explizite Verbindungen im Wissensgraphen, was Ihnen hilft, ein echtes Wissensnetz aufzubauen."
+            },
+            "tasks": {
+                "title": "Aufgabenverwaltung",
+                "intro": "Erfassen Sie Aufgaben direkt in Ihren Notizen mit der Markdown-Syntax:",
+                "open": "Meine Aufgabe",
+                "completed": "Meine erledigte Aufgabe",
+                "dueDate": { "title": "Fälligkeitsdaten hinzufügen", "description": "Fügen Sie ein Fälligkeitsdatum hinzu, indem Sie `@{JJJJ-MM-TT}` an das Ende der Aufgabe anhängen. Beispiel: `- [ ] Wichtige Präsentation vorbereiten @{2024-12-24}`." },
+                "view": { "title": "Aufgabenansicht", "description": "Wechseln Sie zur Ansicht \"Aufgaben\" in der linken Seitenleiste, um alle Ihre Aufgaben intelligent nach Fälligkeitsdatum gruppiert zu sehen." }
+            },
+            "templates": {
+                "title": "Vorlagen & Wiederverwendbarkeit",
+                "use": { "title": "Vorlagen verwenden", "description": "Starten Sie eine neue Notiz schneller, indem Sie eine Vorlage aus dem \"Neue Notiz\"-Dropdown auswählen." },
+                "save": { "title": "Eigene Vorlagen speichern", "description": "Wenn Sie eine Notizstruktur wiederverwenden möchten, öffnen Sie die Notiz im Editor und klicken Sie auf" },
+                "manage": { "title": "Vorlagen verwalten", "description": "In der Ansicht \"Vorlagen\" können Sie Ihre gespeicherten Vorlagen verwenden oder löschen." }
+            },
+            "ai": {
+                "title": "Der KI-Agenten-Schwarm",
+                "intro": "Öffnen Sie die rechte Seitenleiste, um auf die KI-Agenten zuzugreifen. Sie helfen Ihnen, Ihre Notizen zu verbessern.",
+                "recipes": { "title": "KI-Rezepte", "description": "Vorgefertigte Arbeitsabläufe für komplexe Aufgaben wie das Erstellen eines Blogbeitrags", "or": "oder das Analysieren eines Meetings" },
+                "analysis": "Generiert eine Zusammenfassung und schlägt relevante Tags für Ihre Notiz vor.",
+                "creative": "Entwickelt neue Ideen basierend auf dem Inhalt Ihrer Notiz.",
+                "image": "Erstellt ein Bild basierend auf dem Titel und Inhalt Ihrer Notiz. Wählen Sie verschiedene Stile für kreative Ergebnisse.",
+                "plan": "Erstellt einen umsetzbaren Plan oder eine Checkliste aus Ihren Ideen.",
+                "more": "... und weitere Agenten für Recherche, Übersetzung und Formatierung!"
+            },
+            "graph": {
+                "title": "Wissen visualisieren",
+                "description1": "Der Wissensgraph in der rechten Seitenleiste visualisiert die Verbindungen zwischen Ihren Notizen. Notizen werden durch gemeinsame Tags (durchgezogene Linien) oder durch direkte [[Wiki-Links]] (gestrichelte Linien) verbunden.",
+                "description2": "Klicken Sie auf einen Knoten im Graphen, um direkt zur entsprechenden Notiz zu springen."
+            },
+            "history": {
+                "title": "Versionsverlauf",
+                "description": "Versehentlich etwas gelöscht? Kein Problem. Die Verlaufsansicht in der rechten Seitenleiste speichert frühere Versionen Ihrer Notizen. Sie können eine ältere Version mit einem einzigen Klick auf \"Wiederherstellen\" wiederherstellen."
+            }
+        },
+        "faq": {
+            "title": "Häufig gestellte Fragen (FAQ)",
+            "q1": { "question": "Was ist Markdown?", "answer": "Markdown ist eine einfache Auszeichnungssprache zur Formatierung von Text. Sie ermöglicht es Ihnen, Überschriften, Listen, fettgedruckten Text und mehr zu erstellen, ohne die Hände von der Tastatur zu nehmen. Zum Beispiel: `# Überschrift` oder `**fett**`." },
+            "q2": { "question": "Wie funktioniert die KI? Sind meine Daten sicher?", "answer": "OmniNote verwendet die Google Gemini API, um seine KI-Funktionen bereitzustellen. Ihre Notizen werden zur Verarbeitung an die API gesendet. Wir speichern Ihre Daten sicher in Ihrem Browser (localStorage) und senden sie nur dann an die API, wenn Sie aktiv einen KI-Agenten ausführen. Ihre Daten werden nicht zum Trainieren des Modells verwendet." },
+            "q3": { "question": "Kann ich meine Daten exportieren?", "answer": "Ja! Gehen Sie zu Einstellungen > Datenverwaltung. Dort können Sie alle Ihre Notizen und Einstellungen als JSON-Datei exportieren. Dies ist eine großartige Möglichkeit, Backups zu erstellen." },
+            "q4": { "question": "Funktioniert die App offline?", "answer": "Ja, OmniNote ist für den Offline-Betrieb konzipiert. Alle Ihre Notizen werden lokal in Ihrem Browser gespeichert. Sie können Notizen ohne Internetverbindung erstellen, bearbeiten und anzeigen. Die KI-Funktionen erfordern jedoch eine aktive Internetverbindung." }
+        },
+        "glossary": {
+            "title": "Glossar",
+            "term1": { "term": "KI-Agent", "definition": "Ein spezialisiertes KI-Tool, das eine bestimmte Aufgabe ausführt, z. B. das Erstellen einer Zusammenfassung, das Brainstorming von Ideen oder das Bereitstellen einer Übersetzung." },
+            "term2": { "term": "KI-Agenten-Schwarm", "definition": "Die Sammlung aller verfügbaren KI-Agenten, die zusammenarbeiten, um Ihre Notizen zu analysieren und zu verbessern." },
+            "term3": { "term": "KI-Rezept", "definition": "Ein vordefinierter, mehrstufiger KI-Arbeitsablauf, der komplexe Aufgaben mit einem einzigen Klick ausführt, z. B. das Generieren eines vollständigen Blogbeitrags aus Stichpunkten." },
+            "term4": { "term": "Wissensgraph", "definition": "Eine visuelle Darstellung Ihrer Notizen als Netzwerkdiagramm. Notizen sind Knoten, und gemeinsame Tags erstellen Verbindungen (Kanten) zwischen ihnen." },
+            "term5": { "term": "Markdown", "definition": "Eine leichtgewichtige Auszeichnungssprache zur Formatierung von Text mit einfacher Syntax. Vollständig im OmniNote-Editor unterstützt." }
+        },
+        "whatsNew": {
+            "title": "Neueste Updates",
+            "intro": "Hier ist ein Blick auf die aufregenden neuen Funktionen, die wir kürzlich zu OmniNote hinzugefügt haben!",
+            "feature1": { "title": "Neues KI-Rezept: Social-Media-Beitrag", "description1": "Verwandeln Sie Ihre Notizen sofort in ansprechende Social-Media-Inhalte! Das neue Rezept \"Social-Media-Beitrag\" in der KI-Seitenleiste entwirft einen prägnanten Beitrag, fügt relevante Hashtags hinzu und schlägt sogar neue Tags für Ihre Notiz vor.", "description2": "Perfekt, um Ihre Ideen auf Plattformen wie X, LinkedIn oder Mastodon zu teilen." },
+            "feature2": { "title": "Einklappbare erledigte Aufgaben", "description1": "Ihre Aufgabenansicht ist jetzt sauberer. Erledigte Aufgaben sind jetzt ordentlich in einem einklappbaren Abschnitt \"Abgeschlossen\" am unteren Rand untergebracht.", "description2": "Dies hilft Ihnen, sich auf das zu konzentrieren, was als Nächstes ansteht, während Sie dennoch einfachen Zugriff auf Ihre Erfolge haben." },
+            "feature3": { "title": "Verbessertes Hilfecenter", "description": "Sie sehen es sich gerade an! Wir haben das Hilfecenter mit einem neuen Tab \"Was ist neu\" und verbessertem Styling überarbeitet, um das Finden von Informationen einfacher und angenehmer zu gestalten." }
+        }
+    },
+    "aiPanel": {
+        "selectNote": "Wählen Sie eine Notiz, um KI-Funktionen zu nutzen.",
+        "settings": "Agenten-Einstellungen",
+        "apiKeyMissing": "API-Schlüssel nicht konfiguriert. KI-Funktionen sind deaktiviert.",
+        "error": {
+            "prefix": "Fehler beim Ausführen des {{agentName}}-Agenten. Bitte versuchen Sie es erneut.",
+            "toast": "Fehler mit dem {{agentName}}-Agenten."
+        },
+        "actions": {
+            "prepend": "An Notiz anfügen (oben)",
+            "addTags": "Tags zur Notiz hinzufügen",
+            "append": "An Notiz anhängen (unten)",
+            "appendChecklist": "Als Checkliste anhängen",
+            "replace": "Notizinhalt ersetzen",
+            "replaceNote": "Notizinhalt & Titel ersetzen"
+        },
+        "recipes": {
+            "title": "KI-Rezepte",
+            "blog": { "button": "Blogbeitrag erstellen" },
+            "meeting": { "button": "Meeting analysieren" },
+            "social": { "button": "Social-Media-Post" },
+            "loading": "Dein Rezept wird zubereitet..."
+        },
+        "analysis": {
+            "title": "Analyse-Agent",
+            "button": "Notiz analysieren",
+            "settings": {
+                "summaryLength": "Länge der Zusammenfassung",
+                "short": "Kurz",
+                "detailed": "Detailliert"
+            },
+            "summary": "Zusammenfassung",
+            "tags": "Vorgeschlagene Tags",
+            "summaryTitle": "KI-Zusammenfassung"
+        },
+        "creative": {
+            "title": "Kreativ-Agent",
+            "button": "Ideen brainstormen",
+            "settings": {
+                "ideaCount": "Anzahl der Ideen"
+            },
+            "idea": "Idee"
+        },
+        "image": {
+            "title": "Bild-Agent",
+            "button": "Bild generieren",
+            "settings": {
+                "style": "Bildstil",
+                "aspectRatio": "Seitenverhältnis"
+            },
+            "styles": {
+                "default": "Standard",
+                "photorealistic": "Fotorealistisch",
+                "watercolor": "Aquarell",
+                "anime": "Anime"
+            },
+            "generating": "Male deine Vision...",
+            "patience": "Dies kann einen Moment dauern.",
+            "altText": "Generiertes Bild"
+        },
+        "plan": {
+            "title": "Planer-Agent",
+            "button": "Aktionsplan erstellen",
+            "settings": {
+                "detail": "Plandetaillierung",
+                "simple": "Einfach",
+                "detailed": "Detailliert"
+            },
+            "task": "Aufgabe",
+            "checklistTitle": "Aktionsplan"
+        },
+        "translate": {
+            "title": "Übersetzer-Agent",
+            "button": "Übersetzen",
+            "settings": {
+                "targetLanguage": "Zielsprache"
+            },
+            "loading": "Übersetze...",
+            "translation": "Übersetzung"
+        },
+        "format": {
+            "title": "Formatierungs-Agent",
+            "button": "Notiz formatieren",
+            "loading": "Formatiere...",
+            "formattedText": "Formatierter Text"
+        },
+        "research": {
+            "title": "Recherche-Agent",
+            "button": "Ressourcen finden",
+            "loading": "Recherchiere...",
+            "sources": "Quellen",
+            "notFound": "Keine Online-Ergebnisse zu diesem Thema gefunden. Versuchen Sie, Ihren Notizinhalt zu verfeinern, um bessere Rechercheergebnisse zu erzielen."
+        }
+    },
+    "toast": {
+        "noteSaved": "Notiz gespeichert!",
+        "templateSaved": "Vorlage \"{{title}}\" gespeichert!",
+        "noteDeleted": "Notiz gelöscht.",
+        "exportSuccess": "Export erfolgreich!",
+        "exportFailed": "Export fehlgeschlagen. Details in der Konsole.",
+        "noteHasNoContent": "Bitte wählen Sie eine Notiz mit Inhalt aus.",
+        "tagsApplied": "Tags erfolgreich angewendet!",
+        "summaryPrepended": "Zusammenfassung zur Notiz hinzugefügt!",
+        "checklistAppended": "Checkliste an die Notiz angehängt!",
+        "noteContentUpdated": "Notizinhalt aktualisiert!",
+        "recipeResultApplied": "Notiz mit Rezept-Ergebnis aktualisiert!",
+        "imageAppended": "Bild an die Notiz angehängt!",
+        "copied": "{{type}} in die Zwischenablage kopiert!",
+        "noteRestored": "Notiz auf eine frühere Version zurückgesetzt!",
+        "selectFile": "Bitte wählen Sie eine zu importierende Datei aus.",
+        "fileReadError": "Datei konnte nicht gelesen werden.",
+        "invalidFileFormat": "Ungültiges Dateiformat: muss ein JSON-Objekt sein.",
+        "importSuccess": "Import erfolgreich!",
+        "importReport": "Import abgeschlossen: {{notes}} Notizen und {{templates}} Vorlagen hinzugefügt.",
+        "importFailedDetails": "Import fehlgeschlagen: {{message}}",
+        "batchDeleteSuccess": "{{count}} Notizen gelöscht.",
+        "batchPinSuccess": "{{count}} Notizen angeheftet.",
+        "batchUnpinSuccess": "{{count}} Notizen gelöst.",
+        "batchTagSuccess": "Tag '{{tag}}' zu {{count}} Notizen hinzugefügt.",
+        "emptyTagError": "Ein leeres Tag kann nicht hinzugefügt werden.",
+        "aiAgentTriggered": "{{agentName}} für aktuelle Notiz ausgelöst."
+    },
+    "languages": {
+        "english": "Englisch",
+        "german": "Deutsch",
+        "spanish": "Spanisch",
+        "french": "Französisch",
+        "japanese": "Japanisch",
+        "chinese": "Chinesisch"
+    }
+}
