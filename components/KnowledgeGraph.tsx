@@ -101,8 +101,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
             if (targetNote && targetNote.id !== note.id) {
                 const source = note.id;
                 const target = targetNote.id;
-                const key = [source, target].sort().join('-');
-                // We allow directed links for wiki-links, so key is not sorted
                 const directedKey = `${source}->${target}`;
                  if (!linkSet.has(directedKey)) {
                     linkSet.add(directedKey);
@@ -151,7 +149,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
   }, [activeNodeId, isConnected]);
 
 
-  // One-time setup effect
   useEffect(() => {
     if (!svgRef.current || !containerRef.current) return;
     const { width, height } = containerRef.current.getBoundingClientRect();
@@ -183,7 +180,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
     });
     svg.call(zoomBehavior);
 
-    // Resize observer
     const resizeObserver = new ResizeObserver(entries => {
       window.requestAnimationFrame(() => {
         if (!Array.isArray(entries) || !entries.length) {
@@ -209,7 +205,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
     };
   }, []);
 
-  // Effect to update simulation forces when props change
   useEffect(() => {
     if (!simulationRef.current) return;
     simulationRef.current.force('charge', forceManyBody().strength(charge));
@@ -234,7 +229,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
   }, [updateNodeAndLinkAppearance]);
 
 
-  // Effect to update data and DOM elements
   useEffect(() => {
     if (!simulationRef.current || !gRef.current) return;
 
@@ -250,7 +244,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
     linkData.enter().append('line')
       .attr('class', 'link')
       .style('transition', 'opacity 300ms ease');
-
 
     const nodeData = g.selectAll<SVGGElement, GraphNode>('.node')
       .data(nodes, d => d.id);
@@ -282,7 +275,6 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
 
   }, [nodes, links, onNodeClick, nodeMouseOver, nodeMouseOut]);
 
-  // Effect for visual updates (colors, active state, neighborhood)
   useEffect(() => {
     if (!gRef.current) return;
     const g = select(gRef.current);
@@ -308,7 +300,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
   }, [colors, activeNodeId, nodes, links, updateNodeAndLinkAppearance]);
 
   return (
-    <div ref={containerRef} className="w-full h-full cursor-grab">
+    <div ref={containerRef} className="w-full h-full cursor-grab relative">
        {notes.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-full text-center text-slate-500 p-4">
             <Share2 className="mx-auto h-16 w-16 text-slate-400" />
@@ -316,7 +308,47 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
             <p className="mt-1 text-slate-400">{t('graph.empty.description')}</p>
         </div>
       ) : (
-        <svg ref={svgRef}></svg>
+        <>
+            <svg ref={svgRef} aria-hidden="true"></svg>
+            {/* Screen Reader Table for Accessibility */}
+            <div className="sr-only">
+                <table>
+                    <caption>Knowledge Graph Connections</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">Note</th>
+                            <th scope="col">Connections</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {nodes.map(node => {
+                            const connections = links
+                                .filter(l => {
+                                    const sId = (l.source as GraphNode).id || l.source;
+                                    const tId = (l.target as GraphNode).id || l.target;
+                                    return sId === node.id || tId === node.id;
+                                })
+                                .map(l => {
+                                    const sId = (l.source as GraphNode).id || l.source;
+                                    const tId = (l.target as GraphNode).id || l.target;
+                                    const otherId = sId === node.id ? tId : sId;
+                                    return notes.find(n => n.id === otherId)?.title;
+                                })
+                                .filter(Boolean);
+                            
+                            return (
+                                <tr key={node.id}>
+                                    <td>
+                                        <button onClick={() => onNodeClick(node.id)}>{node.title}</button>
+                                    </td>
+                                    <td>{connections.join(', ')}</td>
+                                </tr>
+                            );
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        </>
       )}
     </div>
   );

@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Note, Template, AppSettings, AiAgentSettings, AVAILABLE_LANGUAGES, ImportData } from '../types';
-import { useToast } from '../contexts/ToastContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { AppSettings, AiAgentSettings, AVAILABLE_LANGUAGES, ImportData } from '../types';
+import { useAppSelector, useAppDispatch } from '../core/store/hooks';
+import { setSetting, setAiSetting, resetSettings } from '../features/settings/settingsSlice';
+import { addToast } from '../features/ui/uiSlice';
 import { X, FileDown, FileUp, AlertTriangle, Palette, Pencil, BrainCircuit, Database } from './icons';
 import { useLocale } from '../contexts/LocaleContext';
 
@@ -16,8 +17,8 @@ interface SettingsModalProps {
 type Tab = 'appearance' | 'editor' | 'ai' | 'data';
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport, onImport }) => {
-  const { addToast } = useToast();
-  const { settings, setSetting, resetSettings, setAiSetting } = useSettings();
+  const dispatch = useAppDispatch();
+  const settings = useAppSelector(state => state.settings);
   const { locale, setLocale, t } = useLocale();
   const [file, setFile] = useState<File | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -34,45 +35,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      
-      if (e.key === 'Tab') {
-        const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (!focusableElements) return;
-
-        const firstElement = focusableElements[0];
-        const lastElement = focusableElements[focusableElements.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === firstElement) {
-            lastElement.focus();
-            e.preventDefault();
-          }
-        } else {
-          if (document.activeElement === lastElement) {
-            firstElement.focus();
-            e.preventDefault();
-          }
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    
-    const firstFocusable = modalRef.current?.querySelector<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    firstFocusable?.focus();
-    
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
-
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setFile(event.target.files[0]);
@@ -81,7 +43,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
 
   const handleImportClick = () => {
     if (!file) {
-      addToast(t('toast.selectFile'), 'error');
+      dispatch(addToast({ message: t('toast.selectFile'), type: 'error' }));
       return;
     }
 
@@ -93,21 +55,19 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
         const data = JSON.parse(text);
         if (!data || typeof data !== 'object') throw new Error(t('toast.invalidFileFormat'));
 
-        // Pass all data to parent handler
         onImport(data);
 
-        // Apply settings directly
         if (data.settings && typeof data.settings === 'object') {
             Object.keys(data.settings).forEach(key => {
                 const settingsKey = key as keyof AppSettings;
                 if (settingsKey !== 'aiAgentDefaults') {
-                     setSetting(settingsKey, data.settings[settingsKey]);
+                     dispatch(setSetting({ key: settingsKey, value: data.settings[settingsKey] }));
                 }
             });
             if (data.settings.aiAgentDefaults) {
                 Object.keys(data.settings.aiAgentDefaults).forEach(key => {
                     const aiKey = key as keyof AiAgentSettings;
-                    setAiSetting(aiKey, data.settings.aiAgentDefaults[aiKey]);
+                    dispatch(setAiSetting({ key: aiKey, value: data.settings.aiAgentDefaults[aiKey] }));
                 });
             }
         }
@@ -115,11 +75,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
       } catch (error: unknown) {
         let message = 'Unknown error';
         if (error instanceof Error) message = error.message;
-        addToast(t('toast.importFailedDetails', { message }), 'error');
+        dispatch(addToast({ message: t('toast.importFailedDetails', { message }), type: 'error' }));
         console.error('Import error:', error);
       }
     };
-    reader.onerror = () => addToast(t('toast.fileReadError'), 'error');
+    reader.onerror = () => dispatch(addToast({ message: t('toast.fileReadError'), type: 'error' }));
     reader.readAsText(file);
   };
   
@@ -135,7 +95,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
   const handleLanguageChange = (value: 'en' | 'de') => {
       setLocale(value);
       const targetLang = value === 'en' ? 'English' : 'German';
-      setAiSetting('targetLanguage', targetLang);
+      dispatch(setAiSetting({ key: 'targetLanguage', value: targetLang }));
   };
 
   return (
@@ -156,7 +116,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
         </div>
         
         <div className="flex flex-col sm:flex-row h-full overflow-hidden">
-             {/* Sidebar for tabs - Horizontal on mobile, Vertical on Desktop */}
              <div className="sm:w-48 flex-shrink-0 bg-slate-100/50 dark:bg-slate-900/50 sm:border-r border-slate-200 dark:border-slate-800 overflow-x-auto sm:overflow-visible">
                 <div className="flex sm:flex-col p-2 sm:p-4 gap-1">
                     <div className="hidden sm:block mb-4">
@@ -179,7 +138,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
              </div>
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-                {/* Language selector for Mobile inside content area */}
                 <div className="sm:hidden mb-6">
                      <SettingsRow label={t('settings.general.language')}>
                         <SegmentedControl options={[{label: 'EN', value: 'en'}, {label: 'DE', value: 'de'}]} value={locale} onChange={(val) => handleLanguageChange(val as 'en' | 'de')} />
@@ -189,49 +147,49 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
                 {activeTab === 'appearance' && (
                     <div className="space-y-6">
                          <SettingsRow label={t('settings.appearance.density.label')} direction="col">
-                            <SegmentedControl options={[{label: t('settings.appearance.density.compact'), value: 'compact'}, {label: t('settings.appearance.density.default'), value: 'default'}, {label: t('settings.appearance.density.comfortable'), value: 'comfortable'}]} value={settings.density} onChange={(value) => setSetting('density', value as any)} />
+                            <SegmentedControl options={[{label: t('settings.appearance.density.compact'), value: 'compact'}, {label: t('settings.appearance.density.default'), value: 'default'}, {label: t('settings.appearance.density.comfortable'), value: 'comfortable'}]} value={settings.density} onChange={(value) => dispatch(setSetting({ key: 'density', value: value as AppSettings['density'] }))} />
                         </SettingsRow>
                         <SettingsRow label={t('settings.appearance.font.label')}>
-                            <select value={settings.font} onChange={(e) => setSetting('font', e.target.value as AppSettings['font'])} className="w-full sm:w-40 p-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <select value={settings.font} onChange={(e) => dispatch(setSetting({ key: 'font', value: e.target.value as AppSettings['font'] }))} className="w-full sm:w-40 p-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                                 <option value="system-ui">{t('settings.appearance.font.system')}</option>
                                 <option value="serif">{t('settings.appearance.font.serif')}</option>
                                 <option value="monospace">{t('settings.appearance.font.monospace')}</option>
                             </select>
                         </SettingsRow>
                          <SettingsRow label={t('settings.appearance.reduceMotion')}>
-                           <ToggleSwitch checked={settings.reduceMotion} onChange={(checked) => setSetting('reduceMotion', checked)} />
+                           <ToggleSwitch checked={settings.reduceMotion} onChange={(checked) => dispatch(setSetting({ key: 'reduceMotion', value: checked }))} />
                         </SettingsRow>
                     </div>
                 )}
                  {activeTab === 'editor' && (
                      <div className="space-y-6">
                          <SettingsRow label={t('settings.editor.autoSaveDelay')}>
-                            <SegmentedControl options={[{label: '1.5s', value: 1500}, {label: '3s', value: 3000}, {label: '5s', value: 5000}]} value={settings.autoSaveDelay} onChange={(value) => setSetting('autoSaveDelay', value as any)} />
+                            <SegmentedControl options={[{label: '1.5s', value: 1500}, {label: '3s', value: 3000}, {label: '5s', value: 5000}]} value={settings.autoSaveDelay} onChange={(value) => dispatch(setSetting({ key: 'autoSaveDelay', value: value as AppSettings['autoSaveDelay'] }))} />
                          </SettingsRow>
                           <SettingsRow label={t('settings.editor.fontSize')} direction="col">
-                            <SegmentedControl options={[{label: t('settings.editor.fontSizes.small'), value: 'small'}, {label: t('settings.editor.fontSizes.medium'), value: 'medium'}, {label: t('settings.editor.fontSizes.large'), value: 'large'}]} value={settings.editorFontSize} onChange={(value) => setSetting('editorFontSize', value as any)} />
+                            <SegmentedControl options={[{label: t('settings.editor.fontSizes.small'), value: 'small'}, {label: t('settings.editor.fontSizes.medium'), value: 'medium'}, {label: t('settings.editor.fontSizes.large'), value: 'large'}]} value={settings.editorFontSize} onChange={(value) => dispatch(setSetting({ key: 'editorFontSize', value: value as AppSettings['editorFontSize'] }))} />
                          </SettingsRow>
                          <SettingsRow label={t('settings.editor.defaultView')}>
-                            <SegmentedControl options={[{label: t('editor.edit'), value: 'edit'}, {label: t('editor.preview'), value: 'preview'}]} value={settings.defaultEditorView} onChange={(value) => setSetting('defaultEditorView', value as any)} />
+                            <SegmentedControl options={[{label: t('editor.edit'), value: 'edit'}, {label: t('editor.preview'), value: 'preview'}]} value={settings.defaultEditorView} onChange={(value) => dispatch(setSetting({ key: 'defaultEditorView', value: value as AppSettings['defaultEditorView'] }))} />
                          </SettingsRow>
                           <SettingsRow label={t('settings.editor.focusMode')}>
-                           <ToggleSwitch checked={settings.focusMode} onChange={(checked) => setSetting('focusMode', checked)} />
+                           <ToggleSwitch checked={settings.focusMode} onChange={(checked) => dispatch(setSetting({ key: 'focusMode', value: checked }))} />
                         </SettingsRow>
                          <SettingsRow label={t('settings.editor.showWordCount')}>
-                           <ToggleSwitch checked={settings.showWordCount} onChange={(checked) => setSetting('showWordCount', checked)} />
+                           <ToggleSwitch checked={settings.showWordCount} onChange={(checked) => dispatch(setSetting({ key: 'showWordCount', value: checked }))} />
                         </SettingsRow>
                     </div>
                 )}
                 {activeTab === 'ai' && (
                      <div className="space-y-6">
                         <SettingsRow label={t('aiPanel.analysis.settings.summaryLength')} direction="col">
-                            <SegmentedControl options={[{label: t('aiPanel.analysis.settings.short'), value: 'short'}, {label: t('aiPanel.analysis.settings.detailed'), value: 'detailed'}]} value={settings.aiAgentDefaults.summaryLength} onChange={v => setAiSetting('summaryLength', v as any)} />
+                            <SegmentedControl options={[{label: t('aiPanel.analysis.settings.short'), value: 'short'}, {label: t('aiPanel.analysis.settings.detailed'), value: 'detailed'}]} value={settings.aiAgentDefaults.summaryLength} onChange={v => dispatch(setAiSetting({ key: 'summaryLength', value: v as AiAgentSettings['summaryLength'] }))} />
                         </SettingsRow>
                         <SettingsRow label={t('aiPanel.creative.settings.ideaCount')}>
-                            <SegmentedControl options={[{label: '3', value: 3}, {label: '5', value: 5}, {label: '7', value: 7}]} value={settings.aiAgentDefaults.ideaCount} onChange={v => setAiSetting('ideaCount', v as any)} />
+                            <SegmentedControl options={[{label: '3', value: 3}, {label: '5', value: 5}, {label: '7', value: 7}]} value={settings.aiAgentDefaults.ideaCount} onChange={v => dispatch(setAiSetting({ key: 'ideaCount', value: v as AiAgentSettings['ideaCount'] }))} />
                         </SettingsRow>
                         <SettingsRow label={t('aiPanel.translate.settings.targetLanguage')}>
-                            <select value={settings.aiAgentDefaults.targetLanguage} onChange={e => setAiSetting('targetLanguage', e.target.value as AiAgentSettings['targetLanguage'])} className="w-full sm:w-40 p-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
+                            <select value={settings.aiAgentDefaults.targetLanguage} onChange={e => dispatch(setAiSetting({ key: 'targetLanguage', value: e.target.value as AiAgentSettings['targetLanguage'] }))} className="w-full sm:w-40 p-2 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent">
                                 {AVAILABLE_LANGUAGES.map(lang => (
                                     <option key={lang.value} value={lang.value}>{t(lang.labelKey)}</option>
                                 ))}
@@ -273,7 +231,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose, onExport
             </div>
         </div>
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 mt-auto bg-slate-100 dark:bg-slate-950/50 sm:rounded-b-lg pb-8 sm:pb-4 shrink-0">
-            <button onClick={resetSettings} className="text-sm text-slate-500 hover:text-red-500 hover:underline w-full text-center sm:w-auto sm:text-left transition-colors">
+            <button onClick={() => dispatch(resetSettings())} className="text-sm text-slate-500 hover:text-red-500 hover:underline w-full text-center sm:w-auto sm:text-left transition-colors">
                 {t('settings.reset')}
             </button>
         </div>
@@ -304,6 +262,5 @@ const ToggleSwitch: React.FC<{checked: boolean, onChange: (checked: boolean) => 
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow-sm ${checked ? 'translate-x-6' : 'translate-x-1'}`}/>
     </button>
 );
-
 
 export default SettingsModal;

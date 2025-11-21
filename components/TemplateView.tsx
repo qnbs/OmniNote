@@ -1,10 +1,9 @@
 
-
-
 import React, { useState } from 'react';
-import { useNotes } from '../contexts/NoteContext';
-import { LayoutTemplate, Trash2, Plus } from './icons';
-import SearchNotes from './SearchNotes'; // Re-using search component
+import { useAppDispatch, useAppSelector } from '../core/store/hooks';
+import { selectAllTemplates, deleteTemplate } from '../features/notes/noteSlice';
+import { LayoutTemplate, Trash2 } from './icons';
+import SearchNotes from './SearchNotes';
 import { useLocale } from '../contexts/LocaleContext';
 
 interface TemplateViewProps {
@@ -12,7 +11,8 @@ interface TemplateViewProps {
 }
 
 const TemplateView: React.FC<TemplateViewProps> = ({ onUseTemplate }) => {
-    const { templates, deleteTemplate } = useNotes();
+    const dispatch = useAppDispatch();
+    const templates = useAppSelector(selectAllTemplates);
     const { t } = useLocale();
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -37,7 +37,7 @@ const TemplateView: React.FC<TemplateViewProps> = ({ onUseTemplate }) => {
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    deleteTemplate(template.id);
+                                    dispatch(deleteTemplate(template.id));
                                 }}
                                 className="absolute top-1/2 -translate-y-1/2 right-2 p-1 rounded-full text-slate-400 hover:bg-red-100 hover:text-red-500 dark:hover:bg-red-900/50 dark:hover:text-red-400 opacity-0 group-hover:opacity-100"
                                 aria-label={t('templates.delete')}

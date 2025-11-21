@@ -1,47 +1,50 @@
-
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Note, ImportData, AppSettings, Template } from './types';
+import React, { useEffect, useRef, useCallback, createContext, useContext } from 'react';
+import { Note, ImportData } from './types';
 import NoteList from './components/NoteList';
 import NoteEditor, { NoteEditorHandle } from './components/NoteEditor';
 import RightSidebar from './components/RightSidebar';
 import { ThemeProvider, useTheme, ThemeToggle } from './components/ThemeProvider';
 import { BrainCircuit, BookOpenCheck, Settings, Notebook, CheckSquare, LayoutTemplate, HelpCircle, Command } from './components/icons';
 import BottomNavbar from './components/BottomNavbar';
-import { NoteProvider, useNotes } from './contexts/NoteContext';
-import { ToastProvider, useToast } from './contexts/ToastContext';
-import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import TaskView from './components/TaskView';
 import TemplateView from './components/TemplateView';
-import { ModalProvider, useModal } from './contexts/ModalContext';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext';
+import { useAppDispatch, useAppSelector } from './core/store/hooks';
+import { initializeNotes, selectActiveNote, selectFilteredNotes, selectActiveNoteId, setActiveNoteId, addNote, deleteNote, togglePinNote, importData, setSearchQuery } from './features/notes/noteSlice';
+import { openModal, closeModal, setSidebarOpen, setLeftSidebarView, setRightSidebarView, addToast } from './features/ui/uiSlice';
+import ConfirmDeleteModal from './components/ConfirmDeleteModal';
+import SettingsModal from './components/SettingsModal';
+import HelpCenter from './components/HelpCenter';
+import CommandPalette from './components/CommandPalette';
+import Toast from './components/Toast';
+import { store } from './core/store/store';
 
 const MemoizedRightSidebar = React.memo(RightSidebar);
 
-const AppContent: React.FC = () => {
-  const { notes, templates, addNote, deleteNote, importData, togglePinNote } = useNotes();
-  const { addToast } = useToast();
-  const { settings } = useSettings();
-  const { showModal, hideModal } = useModal();
-  const { t } = useLocale();
+// --- Logic Hook ---
+const useAppLogic = () => {
+  const dispatch = useAppDispatch();
+  const { t, locale } = useLocale();
   const { theme, setTheme } = useTheme();
-  const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
-  const [isSidebarOpen, setSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [leftSidebarView, setLeftSidebarView] = useState<'notes' | 'tasks' | 'templates'>('notes');
+  
+  // Redux State Selectors
+  const notes = useAppSelector(selectFilteredNotes);
+  const activeNote = useAppSelector(selectActiveNote);
+  const activeNoteId = useAppSelector(selectActiveNoteId);
+  const settings = useAppSelector(state => state.settings);
+  const ui = useAppSelector(state => state.ui);
+  const allNotes = useAppSelector(state => state.notes.notes.ids.map(id => state.notes.notes.entities[id]!));
+  const searchQuery = useAppSelector(state => state.notes.searchQuery);
+  const toasts = useAppSelector(state => state.ui.toasts);
 
   const editorRef = useRef<NoteEditorHandle>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const helpButtonRef = useRef<HTMLButtonElement>(null);
 
-  const filteredNotes = useMemo(() => {
-    if (!searchQuery) return notes;
-    return notes.filter(note => 
-      note.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      note.content.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [notes, searchQuery]);
-  
-  const activeNote = useMemo(() => notes.find(note => note.id === activeNoteId) || null, [notes, activeNoteId]);
+  // Initialization
+  useEffect(() => {
+      dispatch(initializeNotes(locale));
+  }, [dispatch, locale]);
 
   useEffect(() => {
     if (activeNote) {
@@ -51,70 +54,41 @@ const AppContent: React.FC = () => {
     }
   }, [activeNote, t]);
 
+  // Handlers
   const handleSelectNote = useCallback((id: string) => {
-    setActiveNoteId(id);
-    setLeftSidebarView('notes');
+    dispatch(setActiveNoteId(id));
+    dispatch(setLeftSidebarView('notes'));
     if (window.innerWidth < 768) {
-      setSidebarOpen(false); // On mobile, close sidebar when switching notes to show editor
+      dispatch(setSidebarOpen(false));
     }
-  }, []);
+  }, [dispatch]);
 
   const handleAddNote = useCallback(async (templateContent: string = '', templateTitle: string = t('untitledNote')) => {
-    const newNote = await addNote(templateTitle, templateContent);
-    setActiveNoteId(newNote.id);
-    setLeftSidebarView('notes');
-    if(window.innerWidth < 768) {
-      setSidebarOpen(false);
-    } else {
-        setTimeout(() => {
-            editorRef.current?.focusTitle();
-        }, 100);
-    }
-    return newNote;
-  }, [addNote, t]);
-  
-  const handleShowCommandPalette = useCallback(() => {
-    showModal('commandPalette', {
-        notes,
-        activeNote,
-        onClose: hideModal,
-        onSelectNote: (noteId: string) => {
-            handleSelectNote(noteId);
-            hideModal();
-        },
-        onAddNote: async () => {
-            hideModal();
-            const newNote = await handleAddNote();
-            handleSelectNote(newNote.id);
-        },
-        onToggleTheme: () => setTheme(theme === 'light' ? 'dark' : 'light'),
-        onShowSettings: () => {
-            hideModal();
-            // Defined below, but we need to declare the function before the dependency array
-            handleShowSettings();
-        },
-        onShowHelp: () => {
-            hideModal();
-             // Defined below, but we need to declare the function before the dependency array
-            handleShowHelp();
-        },
-        onTriggerAiAgent: (agentName: string) => {
-            setSidebarOpen(true);
-            addToast(t('toast.aiAgentTriggered', { agentName }), 'info');
-            hideModal();
+    const result = await dispatch(addNote({ title: templateTitle, content: templateContent }));
+    if (addNote.fulfilled.match(result)) {
+        dispatch(setLeftSidebarView('notes'));
+        if(window.innerWidth < 768) {
+            dispatch(setSidebarOpen(false));
+        } else {
+            setTimeout(() => {
+                editorRef.current?.focusTitle();
+            }, 100);
         }
-    });
-  }, [showModal, hideModal, notes, activeNote, handleSelectNote, handleAddNote, setTheme, theme, addToast, t]);
+        return result.payload;
+    }
+  }, [dispatch, t]);
 
-  // Global Keyboard Shortcuts
+  const handleShowCommandPalette = useCallback(() => {
+    dispatch(openModal({ type: 'commandPalette' }));
+  }, [dispatch]);
+
+  // Shortcuts
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // New Note Shortcut
       if ((event.metaKey || event.ctrlKey) && event.key === 'n') {
         event.preventDefault();
         handleAddNote();
       }
-      // Command Palette Shortcut
       if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
         event.preventDefault();
         handleShowCommandPalette();
@@ -123,160 +97,101 @@ const AppContent: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleAddNote, handleShowCommandPalette]);
-  
+
   const confirmDelete = useCallback((noteToDelete: Note) => {
-    const notesForIndex = searchQuery ? filteredNotes : notes;
-    const noteToDeleteIndex = notesForIndex.findIndex(n => n.id === noteToDelete.id);
-
-    if (noteToDeleteIndex === -1) {
-        deleteNote(noteToDelete.id);
-        hideModal();
-        addToast(t('toast.noteDeleted'), 'success');
-        return;
-    }
-
+    const noteToDeleteIndex = notes.findIndex(n => n.id === noteToDelete.id);
     let nextActiveId: string | null = null;
-    if (activeNoteId === noteToDelete.id) {
-      const potentialNextNotes = notesForIndex.filter(n => n.id !== noteToDelete.id);
-      if (potentialNextNotes.length > 0) {
-        const nextIndex = Math.min(noteToDeleteIndex, potentialNextNotes.length - 1);
-        nextActiveId = potentialNextNotes[nextIndex].id;
-      }
+    if (activeNoteId === noteToDelete.id && notes.length > 1) {
+         const potentialNext = notes[noteToDeleteIndex === notes.length - 1 ? noteToDeleteIndex - 1 : noteToDeleteIndex + 1];
+         if(potentialNext) nextActiveId = potentialNext.id;
     }
     
-    deleteNote(noteToDelete.id);
-
-    if (activeNoteId === noteToDelete.id) {
-        setActiveNoteId(nextActiveId);
-    }
-
-    hideModal();
-    addToast(t('toast.noteDeleted'), 'success');
-  }, [activeNoteId, deleteNote, filteredNotes, notes, addToast, searchQuery, hideModal, t]);
-
+    dispatch(deleteNote(noteToDelete.id));
+    if(nextActiveId) dispatch(setActiveNoteId(nextActiveId));
+    
+    dispatch(closeModal());
+  }, [activeNoteId, notes, dispatch]);
 
   const handleDeleteRequest = useCallback((note: Note, triggerElement: HTMLElement) => {
-    showModal('deleteConfirm', {
-        note: note,
-        onConfirm: () => confirmDelete(note),
-        onClose: () => {
-            hideModal();
-            triggerElement.focus();
-        },
-    });
-  }, [showModal, hideModal, confirmDelete]);
-  
-  const handleTogglePin = useCallback((id: string) => {
-    togglePinNote(id);
-  }, [togglePinNote]);
-  
-  const activeMobileView = isSidebarOpen ? 'sidebar' : (activeNoteId ? 'editor' : 'list');
-
-  const handleMobileNavigate = useCallback((view: 'list' | 'sidebar') => {
-    if (view === 'list') {
-      setActiveNoteId(null);
-      setSidebarOpen(false);
-    } else if (view === 'sidebar') {
-      if (!activeNoteId && notes.length > 0) {
-        setActiveNoteId(notes[0].id);
-      }
-      setSidebarOpen(true);
-    }
-  }, [activeNoteId, notes]);
+    dispatch(openModal({ 
+        type: 'deleteConfirm', 
+        props: { note, onConfirm: () => confirmDelete(note) }
+    }));
+  }, [dispatch, confirmDelete]);
 
   const handleExport = useCallback((exportType: 'all' | 'notes' | 'templates' | 'settings') => {
     try {
+        const state = store.getState();
         let dataToExport: ImportData = {};
         let filename = `omninote_backup_${new Date().toISOString().split('T')[0]}.json`;
+        
+        const currentNotes = state.notes.notes.ids.map(id => state.notes.notes.entities[id]!);
+        const currentTemplates = state.notes.templates.ids.map(id => state.notes.templates.entities[id]!);
+        const currentSettings = state.settings;
 
         switch(exportType) {
-            case 'all':
-                dataToExport = { notes, templates, settings };
-                break;
-            case 'notes':
-                dataToExport = { notes };
-                filename = 'omninote_notes_export.json';
-                break;
-            case 'templates':
-                 dataToExport = { templates };
-                 filename = 'omninote_templates_export.json';
-                 break;
-            case 'settings':
-                dataToExport = { settings };
-                filename = 'omninote_settings_export.json';
-                break;
+            case 'all': dataToExport = { notes: currentNotes, templates: currentTemplates, settings: currentSettings }; break;
+            case 'notes': dataToExport = { notes: currentNotes }; filename = 'omninote_notes_export.json'; break;
+            case 'templates': dataToExport = { templates: currentTemplates }; filename = 'omninote_templates_export.json'; break;
+            case 'settings': dataToExport = { settings: currentSettings }; filename = 'omninote_settings_export.json'; break;
         }
-
-      const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      addToast(t('toast.exportSuccess'), 'success');
-    } catch (error) {
-      console.error('Export failed:', error);
-      addToast(t('toast.exportFailed'), 'error');
+        
+        const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        dispatch(addToast({ message: t('toast.exportSuccess'), type: 'success' }));
+    } catch(e) {
+        console.error(e);
+        dispatch(addToast({ message: t('toast.exportFailed'), type: 'error' }));
     }
-  }, [notes, templates, settings, addToast, t]);
+  }, [dispatch, t]);
 
-  const handleImport = useCallback((data: ImportData) => {
-    importData(data);
-    hideModal();
-  }, [importData, hideModal]);
-
-  const handleShowSettings = useCallback(() => {
-      showModal('settings', {
-          onExport: handleExport,
-          onImport: handleImport,
-          onClose: () => {
-              hideModal();
-              settingsButtonRef.current?.focus();
-          }
-      });
-  }, [handleExport, handleImport, showModal, hideModal]);
-
-  const handleShowHelp = useCallback(() => {
-    showModal('help', {
-        onClose: () => {
-            hideModal();
-            helpButtonRef.current?.focus();
-        }
-    });
-  }, [showModal, hideModal]);
-  
-  const densityClasses: Record<string, string> = {
-    compact: 'density-compact',
-    comfortable: 'density-comfortable',
-    default: '',
+  return {
+      // State
+      notes, activeNote, activeNoteId, settings, ui, allNotes, searchQuery, toasts,
+      editorRef, settingsButtonRef, helpButtonRef, theme, locale, t,
+      // Actions
+      setTheme,
+      handleSelectNote,
+      handleAddNote,
+      handleShowCommandPalette,
+      handleDeleteRequest,
+      handleExport,
+      setSearchQuery: (q: string) => dispatch(setSearchQuery(q)),
+      togglePinNote: (id: string) => { const n = allNotes.find(x=>x.id===id); if(n) dispatch(togglePinNote(n)); },
+      setSidebarOpen: (open: boolean) => dispatch(setSidebarOpen(open)),
+      setLeftSidebarView: (view: 'notes'|'tasks'|'templates') => dispatch(setLeftSidebarView(view)),
+      setRightSidebarView: (view: 'ai'|'graph'|'history') => dispatch(setRightSidebarView(view)),
+      openModal: (p: any) => dispatch(openModal(p)),
+      closeModal: () => dispatch(closeModal()),
+      importData: (d: ImportData) => dispatch(importData(d)),
+      setActiveNoteId: (id: string|null) => dispatch(setActiveNoteId(id)),
+      addToast: (msg: any) => dispatch(addToast(msg)),
   };
+}
 
-  const fontClasses: Record<string, string> = {
-      'system-ui': 'font-sans',
-      'serif': 'font-serif',
-      'monospace': 'font-mono',
-  }
+// --- Context ---
+type AppContextType = ReturnType<typeof useAppLogic>;
+const AppContext = createContext<AppContextType | null>(null);
+const useAppContext = () => {
+    const ctx = useContext(AppContext);
+    if (!ctx) throw new Error("useAppContext must be used within AppContent");
+    return ctx;
+}
 
-  return (
-      <div className={`
-        h-screen w-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 
-        ${settings.reduceMotion ? 'reduce-motion' : ''}
-        ${densityClasses[settings.density] || ''}
-        ${fontClasses[settings.font] || 'font-sans'}
-        overflow-hidden fixed inset-0
-      `}>
-        <style>{`
-            .reduce-motion * {
-                transition: none !important;
-                animation: none !important;
-            }
-        `}</style>
-        <div className="flex flex-1 overflow-hidden relative">
-          {/* Left Sidebar */}
-          <div className={`
+// --- Components ---
+
+const LeftSidebar = () => {
+    const { ui, t, setLeftSidebarView, notes, activeNoteId, handleSelectNote, handleAddNote, handleDeleteRequest, togglePinNote, searchQuery, setSearchQuery, allNotes, handleShowCommandPalette, helpButtonRef, openModal, settingsButtonRef, handleExport, importData } = useAppContext();
+    
+    return (
+        <div className={`
             w-full flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900
             md:w-1/4 md:max-w-sm md:flex
             ${activeNoteId ? 'hidden md:flex' : 'flex'}
@@ -290,13 +205,13 @@ const AppContent: React.FC = () => {
                   <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">OmniNote</h1>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={handleShowCommandPalette} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('commandPalette.title')} title={t('commandPalette.title')}>
+                <button onClick={handleShowCommandPalette} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                     <Command className="h-5 w-5" />
                 </button>
-                <button ref={helpButtonRef} onClick={handleShowHelp} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('help.title')} title={t('help.title')}>
+                <button ref={helpButtonRef} onClick={() => openModal({ type: 'help' })} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                   <HelpCircle className="h-5 w-5" />
                 </button>
-                <button ref={settingsButtonRef} onClick={handleShowSettings} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('settings.title')} title={t('settings.title')}>
+                <button ref={settingsButtonRef} onClick={() => openModal({ type: 'settings', props: { onExport: handleExport, onImport: importData } })} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                   <Settings className="h-5 w-5" />
                 </button>
                 <ThemeToggle />
@@ -305,72 +220,43 @@ const AppContent: React.FC = () => {
             
             <div className="p-3 border-b border-slate-200 dark:border-slate-800">
                 <div className="flex p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg">
-                    <button
-                        onClick={() => setLeftSidebarView('notes')}
-                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
-                        leftSidebarView === 'notes' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                    >
-                        <Notebook className="h-3.5 w-3.5" />
-                        {t('sidebar.notes')}
-                    </button>
-                    <button
-                        onClick={() => setLeftSidebarView('tasks')}
-                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
-                        leftSidebarView === 'tasks' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                    >
-                        <CheckSquare className="h-3.5 w-3.5" />
-                        {t('sidebar.tasks')}
-                    </button>
-                     <button
-                        onClick={() => setLeftSidebarView('templates')}
-                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
-                        leftSidebarView === 'templates' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
-                        }`}
-                    >
-                        <LayoutTemplate className="h-3.5 w-3.5" />
-                        {t('sidebar.templates')}
-                    </button>
+                    <button onClick={() => setLeftSidebarView('notes')} className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${ui.activeLeftSidebarView === 'notes' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}><Notebook className="h-3.5 w-3.5" />{t('sidebar.notes')}</button>
+                    <button onClick={() => setLeftSidebarView('tasks')} className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${ui.activeLeftSidebarView === 'tasks' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}><CheckSquare className="h-3.5 w-3.5" />{t('sidebar.tasks')}</button>
+                    <button onClick={() => setLeftSidebarView('templates')} className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${ui.activeLeftSidebarView === 'templates' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400'}`}><LayoutTemplate className="h-3.5 w-3.5" />{t('sidebar.templates')}</button>
                 </div>
             </div>
 
-            {leftSidebarView === 'notes' && (
+            {ui.activeLeftSidebarView === 'notes' && (
                 <NoteList
-                    notes={filteredNotes}
+                    notes={notes}
                     activeNoteId={activeNoteId}
                     onSelectNote={handleSelectNote}
                     onAddNote={handleAddNote}
                     onDeleteNote={handleDeleteRequest}
-                    onTogglePin={handleTogglePin}
+                    onTogglePin={togglePinNote}
                     searchQuery={searchQuery}
                     setSearchQuery={setSearchQuery}
                 />
             )}
-            {leftSidebarView === 'tasks' && (
+            {ui.activeLeftSidebarView === 'tasks' && (
                 <TaskView onSelectNote={handleSelectNote} />
             )}
-            {leftSidebarView === 'templates' && (
+            {ui.activeLeftSidebarView === 'templates' && (
                  <TemplateView
                     onUseTemplate={(content, title) => handleAddNote(content, `${t('newFromTemplatePrefix')} ${title}`)}
                   />
             )}
-          </div>
+        </div>
+    );
+}
 
-          {/* Main Content */}
-          <main className={`
-            flex-1 flex-col w-full
-            ${activeNoteId ? 'flex' : 'hidden md:flex'}
-            relative z-0 bg-white dark:bg-slate-950 transition-colors duration-300
-          `}>
+const MainContent = () => {
+    const { activeNoteId, activeNote, handleAddNote, editorRef, allNotes, handleSelectNote, t } = useAppContext();
+
+    return (
+        <main className={`flex-1 flex-col w-full ${activeNoteId ? 'flex' : 'hidden md:flex'} relative z-0 bg-white dark:bg-slate-950 transition-colors duration-300`}>
             {activeNote ? (
-              <NoteEditor
-                ref={editorRef}
-                key={activeNote.id}
-                note={activeNote}
-                allNotes={notes}
-                onSelectNote={handleSelectNote}
-              />
+              <NoteEditor ref={editorRef} key={activeNote.id} note={activeNote} allNotes={allNotes} onSelectNote={handleSelectNote} />
             ) : (
               <div className="hidden items-center justify-center h-full text-slate-400 dark:text-slate-600 md:flex bg-slate-50/30 dark:bg-slate-900/20">
                 <div className="text-center max-w-md px-6">
@@ -378,72 +264,101 @@ const AppContent: React.FC = () => {
                     <BookOpenCheck className="h-10 w-10 text-slate-300 dark:text-slate-600" />
                   </div>
                   <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">{t('editor.selectNote')}</p>
-                  <p className="text-sm text-slate-400 dark:text-slate-500 mb-6">{t('editor.or')}</p>
-                  
-                  <button 
-                    onClick={() => handleAddNote()}
-                    className="px-5 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/30 active:scale-95"
-                  >
-                    {t('editor.createNewNote')}
-                  </button>
-                   <p className="mt-8 text-xs text-slate-400">
-                    {t('commandPalette.tip.text1')} <kbd className="px-2 py-1 mx-1 text-[10px] font-bold text-slate-500 bg-slate-200 border border-slate-300 rounded dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">{t('commandPalette.tip.kbd')}</kbd> {t('commandPalette.tip.text2')}
-                   </p>
+                  <button onClick={() => handleAddNote()} className="px-5 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/30 active:scale-95">{t('editor.createNewNote')}</button>
                 </div>
               </div>
             )}
-          </main>
+        </main>
+    )
+}
 
-          {/* Backdrop for Right Sidebar on Mobile */}
-          {isSidebarOpen && (
-            <div 
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300"
-                onClick={() => setSidebarOpen(false)}
-                aria-hidden="true"
-            />
-          )}
+const GlobalModals = () => {
+    const { ui, closeModal, handleExport, importData, notes, activeNote, handleSelectNote, handleAddNote, setTheme, theme, openModal, addToast, setRightSidebarView, setSidebarOpen, t } = useAppContext();
+    
+    return (
+        <>
+            {ui.modal.isOpen && ui.modal.type === 'deleteConfirm' && <ConfirmDeleteModal isOpen={true} onClose={closeModal} {...ui.modal.props} />}
+            {ui.modal.isOpen && ui.modal.type === 'settings' && <SettingsModal isOpen={true} onClose={closeModal} {...ui.modal.props} />}
+            {ui.modal.isOpen && ui.modal.type === 'help' && <HelpCenter isOpen={true} onClose={closeModal} />}
+            {ui.modal.isOpen && ui.modal.type === 'commandPalette' && <CommandPalette isOpen={true} onClose={closeModal} notes={notes} activeNote={activeNote} onSelectNote={handleSelectNote} onAddNote={handleAddNote} onToggleTheme={() => setTheme(theme==='light'?'dark':'light')} onShowSettings={() => openModal({type:'settings', props: {onExport: handleExport, onImport: importData}})} onShowHelp={() => openModal({type:'help'})} onTriggerAiAgent={(name) => { 
+                setRightSidebarView('ai'); 
+                setSidebarOpen(true); 
+                addToast({message: t('toast.aiAgentTriggered', { agentName: name }), type:'info'}); 
+                closeModal();
+            }} />}
+        </>
+    )
+}
 
-          {/* Right Sidebar */}
-          <div className={`
-              fixed top-0 right-0 h-full w-4/5 md:w-1/3 md:max-w-md z-30
-              bg-slate-50 dark:bg-slate-900
-              border-l border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none
-              transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-              md:relative md:translate-x-0 md:z-auto
-              ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
-            `}>
-            <MemoizedRightSidebar 
-              activeNote={activeNote} 
-              notes={notes} 
-              onSelectNote={handleSelectNote} 
-              onClose={() => setSidebarOpen(false)}
+const AppContent: React.FC = () => {
+  const logic = useAppLogic();
+  const { settings, ui, activeNoteId, setSidebarOpen, activeNote, allNotes, handleSelectNote, handleAddNote, notes, setActiveNoteId, toasts } = logic;
+
+  const densityClasses: Record<string, string> = {
+    compact: 'density-compact',
+    comfortable: 'density-comfortable',
+    default: '',
+  };
+
+  const fontClasses: Record<string, string> = {
+      'system-ui': 'font-sans',
+      'serif': 'font-serif',
+      'monospace': 'font-mono',
+  }
+
+  return (
+      <AppContext.Provider value={logic}>
+        <div className={`
+            h-screen w-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 
+            ${settings.reduceMotion ? 'reduce-motion' : ''}
+            ${densityClasses[settings.density] || ''}
+            ${fontClasses[settings.font] || 'font-sans'}
+            overflow-hidden fixed inset-0
+        `}>
+            <div className="flex flex-1 overflow-hidden relative">
+                <LeftSidebar />
+                <MainContent />
+
+                {/* Backdrop */}
+                {ui.isSidebarOpen && (
+                    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300" onClick={() => setSidebarOpen(false)} />
+                )}
+
+                {/* Right Sidebar */}
+                <div className={`fixed top-0 right-0 h-full w-4/5 md:w-1/3 md:max-w-md z-30 bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none transition-transform duration-300 ${ui.isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} md:relative md:translate-x-0 md:z-auto`}>
+                    <MemoizedRightSidebar activeNote={activeNote} notes={allNotes} onSelectNote={handleSelectNote} onClose={() => setSidebarOpen(false)} />
+                </div>
+            </div>
+            
+            <BottomNavbar 
+                onNavigate={(view) => {
+                    if(view === 'list') { setActiveNoteId(null); setSidebarOpen(false); }
+                    else if (view === 'sidebar') { if(!activeNoteId && notes.length) setActiveNoteId(notes[0].id); setSidebarOpen(true); }
+                }}
+                onAddNote={() => handleAddNote()}
+                activeView={ui.isSidebarOpen ? 'sidebar' : (activeNoteId ? 'editor' : 'list')}
             />
-          </div>
+
+            <GlobalModals />
+            
+            {/* Toast Container */}
+            <div className="fixed top-4 right-4 z-50 space-y-2 pointer-events-none">
+                {toasts.map(toast => (
+                    <div className="pointer-events-auto" key={toast.id}>
+                        <Toast toast={toast} onClose={() => {/* Handled by Redux */}} duration={toast.duration} />
+                    </div>
+                ))}
+            </div>
         </div>
-        
-        <BottomNavbar 
-          onNavigate={handleMobileNavigate}
-          onAddNote={() => handleAddNote()}
-          activeView={activeMobileView}
-        />
-      </div>
+      </AppContext.Provider>
   );
 };
 
-
 const App: React.FC = () => (
   <ThemeProvider>
-    <ToastProvider>
-        <LocaleProvider>
-          <SettingsProvider>
-            <NoteProvider>
-                <ModalProvider>
-                <AppContent />
-                </ModalProvider>
-            </NoteProvider>
-          </SettingsProvider>
-        </LocaleProvider>
-    </ToastProvider>
+    <LocaleProvider>
+        <AppContent />
+    </LocaleProvider>
   </ThemeProvider>
 );
 

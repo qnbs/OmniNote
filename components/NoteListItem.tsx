@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { Note } from '../types';
 import * as Icons from './icons';
@@ -15,7 +14,7 @@ interface NoteListItemProps {
     isSelected: boolean;
 }
 
-const iconMap: { [key: string]: React.ComponentType<any> } = Icons;
+const iconMap: { [key: string]: React.ComponentType<React.SVGProps<SVGSVGElement>> } = Icons;
 
 const NoteIcon: React.FC<{iconName?: string, isActive: boolean}> = React.memo(({ iconName, isActive }) => {
     const iconClass = `h-4 w-4 flex-shrink-0 ${isActive ? 'text-primary-600 dark:text-primary-400' : 'text-slate-400 dark:text-slate-500'}`;

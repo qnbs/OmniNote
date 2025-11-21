@@ -1,9 +1,11 @@
 
 import React, { useMemo, useState, useCallback } from 'react';
-import { Task } from '../types';
-import { useNotes } from '../contexts/NoteContext';
+import { Task } from '../core/types/note';
 import { CheckSquare, ChevronLeft, Notebook } from './icons';
 import { useLocale } from '../contexts/LocaleContext';
+import { useAppSelector, useAppDispatch } from '../core/store/hooks';
+import { selectAllTasks, updateNote } from '../features/notes/noteSlice';
+import { toDateTimeString } from '../core/types/common';
 
 interface TaskViewProps {
   onSelectNote: (id: string) => void;
@@ -20,7 +22,6 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(({ task, onToggle, onSelect
     const formattedDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }) : null;
 
     const handleToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-        // We don't need the event, just trigger the update
         onToggle(task);
     }, [onToggle, task]);
 
@@ -39,7 +40,7 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(({ task, onToggle, onSelect
                 type="checkbox"
                 checked={task.done}
                 onChange={handleToggle}
-                onClick={stopPropagation} // Prevent navigation when clicking checkbox
+                onClick={stopPropagation} 
                 className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 bg-transparent cursor-pointer"
                 aria-label={task.text}
             />
@@ -71,10 +72,37 @@ const TaskItem: React.FC<TaskItemProps> = React.memo(({ task, onToggle, onSelect
 });
 
 const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
-  const { tasks: allTasks, updateTaskInNote } = useNotes();
+  const dispatch = useAppDispatch();
+  const allTasks = useAppSelector(selectAllTasks);
+  const notes = useAppSelector(state => state.notes.notes.entities); 
   const { t, locale } = useLocale();
   const [showCompleted, setShowCompleted] = useState(false);
   
+  const updateTaskInNote = useCallback((taskToUpdate: Task) => {
+      const note = notes[taskToUpdate.noteId];
+      if (!note) return;
+
+      const lines = note.content.split('\n');
+      const { lineIndex, rawLine } = taskToUpdate;
+
+      // Guard against stale index
+      let realIndex = lineIndex;
+      if (lineIndex >= lines.length || lines[lineIndex] !== rawLine) {
+          realIndex = lines.findIndex(l => l === rawLine);
+      }
+      if (realIndex === -1) return;
+
+      const newDoneState = !taskToUpdate.done;
+      const newCheckbox = newDoneState ? '[x]' : '[ ]';
+      const newLine = rawLine.replace(/\[( |x)\]/, newCheckbox);
+      lines[realIndex] = newLine;
+
+      const newContent = lines.join('\n');
+      if (note.content !== newContent) {
+          dispatch(updateNote({ ...note, content: newContent }));
+      }
+  }, [dispatch, notes]);
+
   const completedTasks = useMemo(() => allTasks.filter(t => t.done), [allTasks]);
 
   const groupedTasks = useMemo(() => {
@@ -89,12 +117,11 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
     };
 
     allTasks.forEach(task => {
-        if(task.done) return; // Don't show completed tasks in date groups
+        if(task.done) return;
 
         if (task.dueDate) {
             try {
                 const dueDate = new Date(task.dueDate);
-                // Adjust for timezone offset to compare dates correctly
                 dueDate.setMinutes(dueDate.getMinutes() + dueDate.getTimezoneOffset());
                 dueDate.setHours(0,0,0,0);
                 if (dueDate < today) {
@@ -112,7 +139,6 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
         }
     });
 
-    // Sort tasks within groups
     groups[t('tasks.groups.overdue')].sort((a,b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     groups[t('tasks.groups.upcoming')].sort((a,b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
 

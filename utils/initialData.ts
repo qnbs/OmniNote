@@ -1,5 +1,6 @@
 
 import { Note, Template } from '../types';
+import { toDateTimeString } from '../core/types/common';
 
 type Locale = 'en' | 'de';
 
@@ -51,8 +52,8 @@ This is your intelligent note-taking companion, now supercharged with new featur
 3. Explore the AI Agents and Knowledge Graph in the right sidebar.
       `,
       tags: ['welcome', 'guide'],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: toDateTimeString(new Date()),
+      updatedAt: toDateTimeString(new Date()),
       pinned: true,
       history: [],
       icon: 'Sparkles',

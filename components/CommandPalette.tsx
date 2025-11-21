@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note } from '../types';
 import { useLocale } from '../contexts/LocaleContext';
 import * as Icons from './icons';
 
-const iconMap: { [key: string]: React.ComponentType<any> } = Icons;
+const iconMap: { [key: string]: React.ComponentType<React.SVGProps<SVGSVGElement>> } = Icons;
 
 const NoteIcon: React.FC<{iconName?: string; className?: string}> = React.memo(({ iconName, className }) => {
     const defaultIconClass = "h-4 w-4";

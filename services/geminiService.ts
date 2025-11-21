@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { BrainstormSuggestion, PlannerSuggestion, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult, ChatMessage } from "../types";
+import { BrainstormSuggestion, StrategicPlanResult, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult, ChatMessage, AdvancedAnalysisResult, AiAgentSettings } from "../core/types/ai";
 
 const getAiClient = () => {
     const API_KEY = process.env.API_KEY;
@@ -10,290 +10,241 @@ const getAiClient = () => {
     return new GoogleGenAI({ apiKey: API_KEY });
 }
 
-const getLanguageInstruction = (locale: 'en' | 'de') => {
-  if (locale === 'de') {
-    return 'Antworte ausschließlich auf Deutsch.';
-  }
-  return 'Answer exclusively in English.';
+// --- Sophisticated Language & Persona Engine ---
+
+const getSophisticatedInstruction = (locale: 'en' | 'de', context: 'analytical' | 'creative' | 'strategic' | 'technical' = 'analytical') => {
+  const styles = {
+    en: {
+      analytical: "Adopt the persona of a Chief Intelligence Officer. Output must be rigorously empirical, identifying latent patterns, structural contradictions, and second-order effects. Use precise, high-register vocabulary.",
+      creative: "Adopt the persona of a Visionary Director. Prioritize lateral thinking, metaphorical resonance, and aesthetic coherence. Avoid clichés; seek the 'oblique angle' and novel synthesis.",
+      strategic: "Adopt the persona of a Management Consultant (MBB level). Focus on MECE (Mutually Exclusive, Collectively Exhaustive) frameworks, critical path analysis, and high-leverage interventions. Be action-oriented and risk-aware.",
+      technical: "Adopt the persona of a Distinguished Engineer. Focus on system design, scalability, corner cases, and idiomatic patterns. Prefer robust, maintainable solutions over clever hacks."
+    },
+    de: {
+      analytical: "Agieren Sie als Chefanalyst. Die Ausgabe muss rigoros empirisch sein und latente Muster, strukturelle Widersprüche sowie Effekte zweiter Ordnung identifizieren. Verwenden Sie eine präzise, gehobene Fachsprache. Sprechen Sie den Nutzer formell (Sie) an.",
+      creative: "Agieren Sie als visionärer Creative Director. Priorisieren Sie laterales Denken, metaphorische Resonanz und ästhetische Kohärenz. Vermeiden Sie Klischees; suchen Sie innovative Synthesen. Sprechen Sie den Nutzer formell (Sie) an.",
+      strategic: "Agieren Sie als Strategieberater (Top-Tier). Fokussieren Sie auf MECE-Frameworks, Analyse des kritischen Pfads und Maßnahmen mit hoher Hebelwirkung. Seien Sie handlungsorientiert und risikobewusst. Formelle Ansprache (Sie).",
+      technical: "Agieren Sie als Principal Software Architect. Fokussieren Sie auf Systemdesign, Skalierbarkeit, Randfälle und idiomatische Muster. Bevorzugen Sie robuste, wartbare Lösungen. Formelle Ansprache (Sie)."
+    }
+  };
+
+  const base = locale === 'de' 
+    ? "Antworten Sie in makellosem, akademisch präzisem Hochdeutsch." 
+    : "Answer in flawless, articulate, and professionally polished English.";
+
+  return `${base} ${styles[locale][context] || styles[locale].analytical}`;
 };
 
+// --- Retry Logic ---
 
-// --- Type Guards for API Responses ---
-
-function isAnalysisResult(obj: unknown): obj is { summary: string; tags: string[] } {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'summary' in obj &&
-        typeof (obj as any).summary === 'string' &&
-        'tags' in obj &&
-        Array.isArray((obj as any).tags) &&
-        (obj as any).tags.every((t: any) => typeof t === 'string')
-    );
+interface ApiError extends Error {
+    status?: number;
 }
 
-function isBrainstormSuggestion(obj: unknown): obj is BrainstormSuggestion {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'ideas' in obj &&
-        Array.isArray((obj as any).ideas) &&
-        (obj as any).ideas.every((i: any) => typeof i === 'string')
-    );
+async function withRetry<T>(operation: () => Promise<T>, retries = 3, delay = 1000): Promise<T> {
+    try {
+        return await operation();
+    } catch (error: unknown) {
+        const apiError = error as ApiError;
+        const message = apiError.message || '';
+        if (retries > 0 && (apiError.status === 429 || apiError.status === 503 || message.includes('429') || message.includes('503'))) {
+            console.warn(`API Error ${apiError.status}. Retrying in ${delay}ms... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return withRetry(operation, retries - 1, delay * 2);
+        }
+        throw error;
+    }
 }
 
-function isPlannerSuggestion(obj: unknown): obj is PlannerSuggestion {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'tasks' in obj &&
-        Array.isArray((obj as any).tasks) &&
-        (obj as any).tasks.every((t: any) => typeof t === 'string')
-    );
-}
-
-function isTranslateSuggestion(obj: unknown): obj is TranslateSuggestion {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'translatedText' in obj &&
-        typeof (obj as any).translatedText === 'string'
-    );
-}
-
-function isFormatSuggestion(obj: unknown): obj is FormatSuggestion {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'formattedText' in obj &&
-        typeof (obj as any).formattedText === 'string'
-    );
-}
-
-function isTitledContentWithTagsResult(obj: unknown): obj is AiRecipeResult {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'title' in obj &&
-        typeof (obj as any).title === 'string' &&
-        'content' in obj &&
-        typeof (obj as any).content === 'string' &&
-        'tags' in obj &&
-        Array.isArray((obj as any).tags) &&
-        (obj as any).tags.every((t: any) => typeof t === 'string')
-    );
-}
-
-function isMeetingAnalysisResult(obj: unknown): obj is AiRecipeResult {
-    return (
-        typeof obj === 'object' &&
-        obj !== null &&
-        'title' in obj &&
-        typeof (obj as any).title === 'string' &&
-        'content' in obj &&
-        typeof (obj as any).content === 'string'
-    );
-}
-
-// --- Generic Helpers for API Calls ---
+// --- Generic Helpers ---
 
 async function generateAndParseJSON<T>(
+  model: string,
   prompt: string,
   config: Record<string, unknown>,
-  typeGuard: (obj: unknown) => obj is T
 ): Promise<T> {
   const ai = getAiClient();
-  const result: GenerateContentResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
-    contents: prompt,
-    config: config,
-  });
-
-  try {
-    const textResponse = result.text?.trim();
-    if (!textResponse) {
-        throw new Error("Received an empty response from the AI.");
-    }
-    // Clean up potential markdown code blocks if the model includes them despite schema
-    const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    const parsed = JSON.parse(cleanJson);
-    
-    if (typeGuard(parsed)) {
-      return parsed;
-    }
-    throw new Error("Parsed JSON does not match the expected format.");
-  } catch (e: unknown) {
-    console.error("Failed to parse JSON from Gemini:", result.text, e);
-    let errorMessage = "Received invalid JSON from AI.";
-    if (e instanceof Error && e.message.includes("format")) {
-        errorMessage = "Received invalid data structure from AI.";
-    }
-    throw new Error(errorMessage);
-  }
-}
-
-async function generateStream(prompt: string, onChunk: (chunk: string) => void) {
-    const ai = getAiClient();
-    const result = await ai.models.generateContentStream({
-        model: "gemini-2.5-flash",
+  
+  return withRetry(async () => {
+      const result: GenerateContentResponse = await ai.models.generateContent({
+        model: model,
         contents: prompt,
-    });
-    for await (const chunk of result) {
-        if (chunk.text) {
-            onChunk(chunk.text);
-        }
-    }
+        config: {
+            ...config,
+            responseMimeType: "application/json" // Enforce JSON
+        },
+      });
+
+      const textResponse = result.text?.trim();
+      if (!textResponse) throw new Error("Received an empty response from the AI.");
+      
+      try {
+          return JSON.parse(textResponse) as T;
+      } catch (e) {
+           throw new Error("Failed to parse JSON response.");
+      }
+  });
 }
 
 
-// --- API Service Functions ---
+// --- Advanced API Service Functions ---
 
-const analysisSchema = {
+const advancedAnalysisSchema = {
   type: Type.OBJECT,
   properties: {
-    summary: {
-      type: Type.STRING,
-      description: "A summary of the note's content in Markdown format.",
-    },
-    tags: {
+    summary: { type: Type.STRING, description: "A sophisticated executive summary." },
+    tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "5-7 highly relevant taxonomy tags." },
+    sentiment: { type: Type.STRING, enum: ["positive", "neutral", "negative", "mixed"] },
+    complexityScore: { type: Type.INTEGER },
+    keyEntities: {
       type: Type.ARRAY,
-      description: "A list of 3-5 relevant lowercase keyword tags.",
       items: {
-        type: Type.STRING,
-      },
-    },
+        type: Type.OBJECT,
+        properties: {
+          name: { type: Type.STRING },
+          category: { type: Type.STRING, enum: ["person", "place", "concept", "org", "other"] }
+        },
+        required: ["name", "category"]
+      }
+    }
   },
-  required: ["summary", "tags"],
+  required: ["summary", "tags", "sentiment", "complexityScore", "keyEntities"],
 };
 
-export const getSummaryAndTags = async (content: string, options: { length: 'short' | 'detailed' }, locale: 'en' | 'de'): Promise<{ summary: string; tags: string[] }> => {
-  const langInstruction = getLanguageInstruction(locale);
-  const summaryInstruction = options.length === 'detailed' 
-    ? "The summary should be a detailed paragraph."
-    : "The summary should be a concise 1-2 sentences.";
+export const getAnalysis = async (content: string, options: { depth: 'standard' | 'deep' }, locale: 'en' | 'de'): Promise<AdvancedAnalysisResult> => {
+  const instruction = getSophisticatedInstruction(locale, 'analytical');
+  const isDeep = options.depth === 'deep';
+  const model = isDeep ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+  // Budget for thinking models
+  const thinkingConfig = isDeep ? { thinkingConfig: { thinkingBudget: 4096 } } : {};
+
+  const prompt = `
+    Analyze the following text.
+    1. Synthesize an executive summary.
+    2. Evaluate semantic complexity (1-10).
+    3. Extract key entities.
+    4. Determine sentiment.
+    ${instruction}
+    
+    Text: "${content.substring(0, 10000)}"
+  `;
   
-  return generateAndParseJSON(
-    `Analyze the following note content and provide a summary and relevant tags. ${summaryInstruction} ${langInstruction} Note content: "${content}"`,
-    { responseMimeType: "application/json", responseSchema: analysisSchema },
-    isAnalysisResult
+  return generateAndParseJSON<AdvancedAnalysisResult>(
+    model,
+    prompt,
+    { 
+        responseSchema: advancedAnalysisSchema,
+        systemInstruction: "You are an elite intelligence analyst. Output strict JSON.",
+        ...thinkingConfig
+    }
   );
 };
-
-export const getSummaryStream = async (content: string, options: { length: 'short' | 'detailed' }, locale: 'en' | 'de', onChunk: (chunk: string) => void) => {
-    const langInstruction = getLanguageInstruction(locale);
-    const summaryInstruction = options.length === 'detailed' 
-    ? "The summary should be a detailed paragraph."
-    : "The summary should be a concise 1-2 sentences.";
-    const prompt = `Summarize the following note. ${summaryInstruction} ${langInstruction} Note content: "${content}"`;
-    await generateStream(prompt, onChunk);
-}
 
 const brainstormSchema = {
   type: Type.OBJECT,
   properties: {
     ideas: {
       type: Type.ARRAY,
-      description: "A list of creative ideas, next steps, or related concepts.",
-      items: {
-        type: Type.STRING,
-      },
+      items: { type: Type.STRING },
     },
   },
   required: ["ideas"],
 };
 
-export const getBrainstormingIdeas = async (content: string, options: { count: 3 | 5 | 7 }, locale: 'en' | 'de'): Promise<BrainstormSuggestion> => {
-    const langInstruction = getLanguageInstruction(locale);
-    return generateAndParseJSON(
-        `Based on the following note, brainstorm exactly ${options.count} creative ideas or next steps. Keep each idea concise. ${langInstruction} Note content: "${content}"`,
+export const getBrainstormingIdeas = async (content: string, options: { count: number, level: string }, locale: 'en' | 'de'): Promise<BrainstormSuggestion> => {
+    const instruction = getSophisticatedInstruction(locale, 'creative');
+    const temperature = options.level === 'wild' ? 1.4 : options.level === 'balanced' ? 0.9 : 0.5;
+    
+    return generateAndParseJSON<BrainstormSuggestion>(
+        "gemini-2.5-flash",
+        `
+        Context: "${content.substring(0, 5000)}"
+        Task: Brainstorm exactly ${options.count} distinct ideas.
+        ${instruction}
+        `,
         {
-          responseMimeType: "application/json",
           responseSchema: brainstormSchema,
-        },
-        isBrainstormSuggestion
+          temperature: temperature,
+          systemInstruction: "You are a world-class creative strategist. Output strict JSON."
+        }
     );
 };
 
-export const getBrainstormingIdeasStream = async (content: string, options: { count: 3 | 5 | 7 }, locale: 'en' | 'de', onChunk: (chunk: string) => void) => {
-    const langInstruction = getLanguageInstruction(locale);
-    const prompt = `Based on the following note, brainstorm exactly ${options.count} creative ideas or next steps. Format each idea on a new line, starting with '- '. ${langInstruction} Note content: "${content}"`;
-    await generateStream(prompt, onChunk);
-}
-
-const plannerSchema = {
+const strategicPlanSchema = {
     type: Type.OBJECT,
     properties: {
+      goal: { type: Type.STRING },
       tasks: {
         type: Type.ARRAY,
-        description: "A list of actionable tasks or steps to achieve the goal described in the note.",
         items: {
-          type: Type.STRING,
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            priority: { type: Type.STRING, enum: ["high", "medium", "low"] },
+            estimatedTime: { type: Type.STRING },
+            subtasks: { type: Type.ARRAY, items: { type: Type.STRING } }
+          },
+          required: ["title", "priority"]
         },
       },
     },
-    required: ["tasks"],
+    required: ["goal", "tasks"],
   };
   
-export const getTaskPlan = async (content: string, options: { detail: 'simple' | 'detailed' }, locale: 'en' | 'de'): Promise<PlannerSuggestion> => {
-      const langInstruction = getLanguageInstruction(locale);
-      const promptDetail = options.detail === 'detailed' 
-        ? "create a detailed, granular plan of actionable steps. Include sub-tasks if necessary."
-        : "create a simple plan of 3-5 high-level actionable steps.";
+export const getStrategicPlan = async (content: string, options: { detail: 'simple' | 'strategic' }, locale: 'en' | 'de'): Promise<StrategicPlanResult> => {
+      const instruction = getSophisticatedInstruction(locale, 'strategic');
+      const isStrategic = options.detail === 'strategic';
+      const model = isStrategic ? "gemini-3-pro-preview" : "gemini-2.5-flash";
+      const thinkingConfig = isStrategic ? { thinkingConfig: { thinkingBudget: 4096 } } : {};
 
-      return generateAndParseJSON(
-        `Based on the following note, ${promptDetail}. ${langInstruction} Note content: "${content}"`,
-        { responseMimeType: "application/json", responseSchema: plannerSchema },
-        isPlannerSuggestion
+      return generateAndParseJSON<StrategicPlanResult>(
+        model,
+        `
+        Context: "${content.substring(0, 10000)}"
+        Task: Create a plan.
+        ${instruction}
+        `,
+        { 
+            responseSchema: strategicPlanSchema,
+            systemInstruction: "You are a senior project director. Output strict JSON.",
+            ...thinkingConfig
+        }
       );
 };
 
-export const getTaskPlanStream = async (content: string, options: { detail: 'simple' | 'detailed' }, locale: 'en' | 'de', onChunk: (chunk: string) => void) => {
-      const langInstruction = getLanguageInstruction(locale);
-      const promptDetail = options.detail === 'detailed' 
-        ? "create a detailed, granular plan of actionable steps. Include sub-tasks if necessary."
-        : "create a simple plan of 3-5 high-level actionable steps.";
-      const prompt = `Based on the following note, ${promptDetail}. Format each task on a new line starting with '- '. ${langInstruction} Note content: "${content}"`;
-      await generateStream(prompt, onChunk);
-}
-
 export const getResearchLinks = async (content: string, locale: 'en' | 'de'): Promise<ResearchSuggestion> => {
   const ai = getAiClient();
-  const langInstruction = getLanguageInstruction(locale);
+  const instruction = getSophisticatedInstruction(locale, 'analytical');
   
-  // Research agent uses Google Search tool, so we cannot enforce JSON schema easily.
-  // We prompt for a structured text response.
-  const prompt = `Based on the following note, provide a concise answer and list relevant online resources. ${langInstruction} Note: "${content.substring(0, 500)}"`;
+  const prompt = `
+    Identify key claims or entities that require verification.
+    Provide a synthesis answering implicit questions.
+    Use Google Search for authoritative sources.
+    
+    Context: "${content.substring(0, 2000)}"
+    
+    ${instruction}
+  `;
 
   const result: GenerateContentResponse = await ai.models.generateContent({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-pro-preview",
     contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
     },
   });
   
-  const answer = result.text;
+  const answer = result.text || "";
   const groundingChunks = result.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
   const sources = groundingChunks.map((chunk) => {
       return {
-          title: chunk.web?.title || 'Untitled Source',
+          title: chunk.web?.title || 'Source',
           uri: chunk.web?.uri || '#',
       };
-  }).filter(item => item.uri !== '#');
+  }).filter(item => item.uri && item.uri !== '#');
 
-  if (!answer && sources.length === 0) {
-      const message = locale === 'de'
-        ? "Keine Online-Ergebnisse zu diesem Thema gefunden. Versuchen Sie, Ihren Notizinhalt zu verfeinern."
-        : "No online results found for this topic. Try refining your note content.";
-
-      return {
-          answer: message,
-          sources: []
-      }
-  }
-
-  return { answer, sources: sources.slice(0, 3) };
+  return { answer, sources: sources.slice(0, 5) };
 };
 
 const translationSchema = {
@@ -305,10 +256,13 @@ const translationSchema = {
 };
 
 export const translateNote = async (content: string, language: string): Promise<TranslateSuggestion> => {
-    return generateAndParseJSON(
-        `Translate the following text to ${language}. Preserve the original markdown formatting. Text: "${content}"`,
-        { responseMimeType: "application/json", responseSchema: translationSchema },
-        isTranslateSuggestion
+    return generateAndParseJSON<TranslateSuggestion>(
+        "gemini-2.5-flash",
+        `
+        Translate to ${language}. Maintain Markdown.
+        Text: "${content}"
+        `,
+        { responseSchema: translationSchema }
     );
 };
 
@@ -321,10 +275,10 @@ const formatSchema = {
 };
 
 export const formatNote = async (content: string): Promise<FormatSuggestion> => {
-    return generateAndParseJSON(
-        `Format the following text into clean and well-structured Markdown. Add headings, lists, and other elements where appropriate to improve readability. Text: "${content}"`,
-        { responseMimeType: "application/json", responseSchema: formatSchema },
-        isFormatSuggestion
+    return generateAndParseJSON<FormatSuggestion>(
+        "gemini-2.5-flash",
+        `Refactor into professional Markdown. Text: "${content}"`,
+        { responseSchema: formatSchema }
     );
 };
 
@@ -332,20 +286,36 @@ export const generateImageFromNote = async (
     noteTitle: string, 
     noteContent: string, 
     style: string,
-    aspectRatio: '16:9' | '1:1' | '4:3' | '3:4' | '9:16'
+    aspectRatio: '16:9' | '1:1' | '4:3' | '3:4' | '9:16',
+    quality: 'standard' | 'hd'
 ): Promise<ImageSuggestion> => {
     const ai = getAiClient();
-    const stylePrompt = style === 'default' ? '' : `, in the style of ${style}`;
-    const prompt = `Generate an image based on the following note${stylePrompt}. Title: "${noteTitle}". Content: "${noteContent.substring(0, 250)}". Focus on creating a visually compelling representation of the key concepts.`;
+    
+    const styleDescriptor = style; // Simplified for brevity, map in UI or here if needed
+
+    const prompt = `
+        Create an image for concept: "${noteTitle}".
+        Context: "${noteContent.substring(0, 500)}".
+        Style: ${styleDescriptor}.
+    `;
+    
+    const isHd = quality === 'hd';
+    const model = isHd ? 'gemini-3-pro-image-preview' : 'gemini-2.5-flash-image';
+    
+    const config: Record<string, unknown> = {
+        imageConfig: {
+            aspectRatio: aspectRatio,
+        }
+    };
+
+    if (isHd) {
+        (config.imageConfig as Record<string, unknown>).imageSize = "2K";
+    }
     
     const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash-image',
+        model: model,
         contents: { parts: [{ text: prompt }] },
-        config: {
-            imageConfig: {
-                aspectRatio: aspectRatio
-            }
-        },
+        config: config,
     });
     
     let base64ImageBytes: string | undefined;
@@ -360,30 +330,36 @@ export const generateImageFromNote = async (
     }
 
     if (!base64ImageBytes) {
-        throw new Error("Image generation failed to return an image.");
+        throw new Error("Image generation failed.");
     }
     
     return { imageBytes: base64ImageBytes };
 };
 
 
-// AI Recipes
+// --- AI Recipes ---
+
 const blogPostSchema = {
     type: Type.OBJECT,
     properties: {
-        title: { type: Type.STRING, description: "A catchy, SEO-friendly title for the blog post." },
-        content: { type: Type.STRING, description: "The full blog post content, formatted in Markdown, including an introduction, several sections with headings, and a conclusion." },
-        tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of 5 relevant tags for the blog post." }
+        title: { type: Type.STRING },
+        content: { type: Type.STRING },
+        tags: { type: Type.ARRAY, items: { type: Type.STRING } }
     },
     required: ["title", "content", "tags"]
 };
 
 export const runBlogPostRecipe = async (originalTitle: string, noteContent: string, locale: 'en' | 'de'): Promise<AiRecipeResult> => {
-    const langInstruction = getLanguageInstruction(locale);
-    return generateAndParseJSON(
-        `Take the following note content and expand it into a well-structured blog post. The original title was "${originalTitle}". Create a new catchy title, write the full content in Markdown, and suggest 5 tags. ${langInstruction} Note: "${noteContent}"`,
-        { responseMimeType: "application/json", responseSchema: blogPostSchema },
-        isTitledContentWithTagsResult
+    const instruction = getSophisticatedInstruction(locale, 'creative');
+    return generateAndParseJSON<AiRecipeResult>(
+        "gemini-2.5-flash",
+        `
+        Transform notes into a blog post.
+        Original Context: "${originalTitle}"
+        Notes: "${noteContent.substring(0, 10000)}"
+        ${instruction}
+        `,
+        { responseSchema: blogPostSchema }
     );
 };
 
@@ -391,50 +367,77 @@ export const runBlogPostRecipe = async (originalTitle: string, noteContent: stri
 const meetingAnalysisSchema = {
     type: Type.OBJECT,
     properties: {
-        title: { type: Type.STRING, description: "A new title for the note in the format 'Meeting Summary: [Original Topic] - [Date]'." },
-        content: { type: Type.STRING, description: "A summary of the meeting formatted in Markdown. It must include three sections: 'Key Decisions', 'Action Items' (as a Markdown checklist), and 'General Summary'." }
+        title: { type: Type.STRING },
+        content: { type: Type.STRING }
     },
     required: ["title", "content"]
 }
 
 export const runMeetingAnalysisRecipe = async (noteContent: string, locale: 'en' | 'de'): Promise<AiRecipeResult> => {
-     const langInstruction = getLanguageInstruction(locale);
-     const titleFormat = locale === 'de' ? "'Meeting-Zusammenfassung: [Originalthema] - [Datum]'" : "'Meeting Summary: [Original Topic] - [Date]'";
-     const sections = locale === 'de'
-        ? "'Wichtige Entscheidungen', 'Aktionspunkte' (als Markdown-Checkliste) und 'Allgemeine Zusammenfassung'"
-        : "'Key Decisions', 'Action Items' (as a Markdown checklist), and 'General Summary'";
-
-     return generateAndParseJSON(
-        `Analyze the following meeting notes. Create a new title for the summary including today's date (${new Date().toLocaleDateString()}) in the format ${titleFormat}. Then, write a new note content that extracts and summarizes the key decisions, lists all action items as a markdown checklist, and provides a general summary. The response must include three sections: ${sections}. ${langInstruction} Notes: "${noteContent}"`,
-        { responseMimeType: "application/json", responseSchema: meetingAnalysisSchema },
-        isMeetingAnalysisResult
+     const instruction = getSophisticatedInstruction(locale, 'strategic');
+     return generateAndParseJSON<AiRecipeResult>(
+        "gemini-3-pro-preview",
+        `
+        Synthesize meeting notes into executive briefing.
+        Raw Notes: "${noteContent.substring(0, 10000)}"
+        ${instruction}
+        `,
+        { 
+            responseSchema: meetingAnalysisSchema,
+            systemInstruction: "You are an executive secretary. Output strict JSON.",
+            thinkingConfig: { thinkingBudget: 2048 }
+        }
     );
 }
 
 const socialPostSchema = {
     type: Type.OBJECT,
     properties: {
-        title: { type: Type.STRING, description: "A short, descriptive title for the note, summarizing the social post's topic." },
-        content: { type: Type.STRING, description: "The content for a social media post (e.g., for LinkedIn or X), formatted in Markdown, including 3-5 relevant hashtags at the end." },
-        tags: { type: Type.ARRAY, items: { type: Type.STRING }, description: "An array of 3-5 relevant keyword tags for the note itself." }
+        title: { type: Type.STRING },
+        content: { type: Type.STRING },
+        tags: { type: Type.ARRAY, items: { type: Type.STRING } }
     },
     required: ["title", "content", "tags"]
 };
 
 export const runSocialPostRecipe = async (noteContent: string, locale: 'en' | 'de'): Promise<AiRecipeResult> => {
-    const langInstruction = getLanguageInstruction(locale);
-    return generateAndParseJSON(
-        `From the following note, draft a concise and engaging social media post. Create a new, short title for the note. Write the post content in Markdown, ending with 3-5 relevant hashtags. Suggest 3-5 keyword tags for the note. ${langInstruction} Note: "${noteContent}"`,
-        { responseMimeType: "application/json", responseSchema: socialPostSchema },
-        isTitledContentWithTagsResult
+    const instruction = getSophisticatedInstruction(locale, 'creative');
+    return generateAndParseJSON<AiRecipeResult>(
+        "gemini-2.5-flash",
+        `
+        Draft a social media post.
+        Notes: "${noteContent.substring(0, 5000)}"
+        ${instruction}
+        `,
+        { responseSchema: socialPostSchema }
     );
+};
+
+// --- Chat Logic ---
+// Kept largely the same but ensured types
+
+const CHAT_INSTRUCTIONS = {
+    en: {
+        base: "You are an intelligent knowledge assistant. Answer based on context.\n\n",
+        socratic: "\n\nPERSONA: Socratic Mentor.",
+        critic: "\n\nPERSONA: Principal Reviewer.",
+        coder: "\n\nPERSONA: Staff Engineer."
+    },
+    de: {
+        base: "Sie sind ein intelligenter Wissensassistent. Antworten Sie basierend auf dem Kontext.\n\n",
+        socratic: "\n\nPERSONA: Sokratischer Mentor.",
+        critic: "\n\nPERSONA: Chef-Kritiker.",
+        coder: "\n\nPERSONA: Software Architect."
+    }
 };
 
 export const streamChatWithNote = async (
     noteContent: string,
     history: ChatMessage[],
     message: string,
-    onChunk: (text: string) => void
+    persona: string,
+    onChunk: (text: string) => void,
+    locale: 'en' | 'de' = 'en'
 ) => {
     const ai = getAiClient();
     const formattedHistory = history.map(msg => ({
@@ -442,11 +445,17 @@ export const streamChatWithNote = async (
         parts: [{ text: msg.text }]
     }));
 
+    const instructions = CHAT_INSTRUCTIONS[locale];
+    let systemInstruction = `${instructions.base}--- CONTEXT ---\n${noteContent.substring(0, 20000)}\n--- END CONTEXT ---`;
+    
+    // Mapping logic for personas
+    if (persona === 'socratic') systemInstruction += instructions.socratic;
+    if (persona === 'critic') systemInstruction += instructions.critic;
+    if (persona === 'coder') systemInstruction += instructions.coder;
+
     const chat = ai.chats.create({
         model: "gemini-2.5-flash",
-        config: {
-            systemInstruction: `You are a helpful assistant. Answer the user's questions based on the context of the following note:\n\n${noteContent}\n\nIf the answer is not in the note, say so, but you can use your general knowledge if explicitly asked. Keep answers concise.`
-        },
+        config: { systemInstruction },
         history: formattedHistory
     });
 

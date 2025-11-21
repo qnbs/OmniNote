@@ -1,8 +1,7 @@
-
 import React, { createContext, useState, useContext, useEffect, useMemo, ReactNode, useCallback } from 'react';
 
 type Locale = 'en' | 'de';
-type Translations = { [key: string]: any };
+type Translations = { [key: string]: unknown };
 
 interface LocaleContextType {
   locale: Locale;
@@ -13,8 +12,8 @@ interface LocaleContextType {
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
 // Helper function to get nested keys
-const getNestedTranslation = (obj: any, key: string): string | undefined => {
-    return key.split('.').reduce((o, i) => (o ? o[i] : undefined), obj);
+const getNestedTranslation = (obj: Record<string, unknown>, key: string): string | undefined => {
+    return key.split('.').reduce((o, i) => (o ? (o as Record<string, unknown>)[i] : undefined), obj) as string | undefined;
 };
 
 export const LocaleProvider: React.FC<{ children: ReactNode }> = ({ children }) => {

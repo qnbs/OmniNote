@@ -1,8 +1,9 @@
 
 import React, { useCallback, useMemo } from 'react';
-import { Note, NoteHistory } from '../types';
+import { Note, NoteHistory } from '../core/types/note';
 import { History } from './icons';
-import { useToast } from '../contexts/ToastContext';
+import { useAppDispatch } from '../core/store/hooks';
+import { addToast } from '../features/ui/uiSlice';
 import { useLocale } from '../contexts/LocaleContext';
 
 interface VersionHistoryProps {
@@ -49,7 +50,7 @@ const VersionItem: React.FC<VersionItemProps> = React.memo(({ version, onRestore
 });
 
 const VersionHistory: React.FC<VersionHistoryProps> = ({ activeNote, onRestore }) => {
-    const { addToast } = useToast();
+    const dispatch = useAppDispatch();
     const { t } = useLocale();
 
     if (!activeNote) {
@@ -58,8 +59,8 @@ const VersionHistory: React.FC<VersionHistoryProps> = ({ activeNote, onRestore }
 
     const handleRestore = useCallback((content: string) => {
         onRestore(content);
-        addToast(t('toast.noteRestored'), 'success');
-    }, [onRestore, addToast, t]);
+        dispatch(addToast({ message: t('toast.noteRestored'), type: 'success' }));
+    }, [onRestore, dispatch, t]);
 
     const history = activeNote.history || [];
 

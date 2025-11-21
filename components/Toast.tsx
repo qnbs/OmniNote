@@ -1,7 +1,9 @@
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { ToastMessage } from '../types';
+import React, { useEffect, useState, useCallback } from 'react';
+import { ToastMessage } from '../core/types/common';
 import { X, AlertTriangle, BrainCircuit, CheckCircle2 } from './icons';
+import { useAppDispatch } from '../core/store/hooks';
+import { removeToast } from '../features/ui/uiSlice';
 
 interface ToastProps {
   toast: ToastMessage;
@@ -21,33 +23,21 @@ const bgColors = {
   info: 'bg-blue-50 dark:bg-blue-900/50 border-blue-500/30',
 };
 
-const Toast: React.FC<ToastProps> = ({ toast, onClose, duration = 4000 }) => {
+const Toast: React.FC<ToastProps> = ({ toast, duration = 4000 }) => {
+  const dispatch = useAppDispatch();
   const [exiting, setExiting] = useState(false);
-  const timerRef = useRef<number | null>(null);
   
-  // Use a ref for onClose to avoid re-running useEffect when it changes
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
   const handleClose = useCallback(() => {
     setExiting(true);
-    setTimeout(() => onCloseRef.current(), 300);
-  }, []);
-  
-  const startTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(handleClose, duration);
-  }, [handleClose, duration]);
-
-  const stopTimer = useCallback(() => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-  }, []);
+    setTimeout(() => {
+        dispatch(removeToast(toast.id));
+    }, 300);
+  }, [dispatch, toast.id]);
 
   useEffect(() => {
-    startTimer();
-    return () => stopTimer();
-  }, [startTimer, stopTimer]);
-  
+    const timer = setTimeout(handleClose, duration);
+    return () => clearTimeout(timer);
+  }, [handleClose, duration]);
 
   return (
     <div
@@ -58,8 +48,6 @@ const Toast: React.FC<ToastProps> = ({ toast, onClose, duration = 4000 }) => {
         ${exiting ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'}
       `}
       role="alert"
-      onMouseEnter={stopTimer}
-      onMouseLeave={startTimer}
     >
       <div className="flex-shrink-0">{icons[toast.type]}</div>
       <div className="ml-3 mr-2 text-sm font-medium text-slate-800 dark:text-slate-200">

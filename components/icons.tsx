@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 
 import {
@@ -102,6 +103,8 @@ import {
   Check,
   Command,
   Send,
+  Activity,
+  Zap
 } from 'lucide-react';
 
 type IconProps = React.HTMLAttributes<SVGElement>;
@@ -207,6 +210,8 @@ export {
   Check,
   Command,
   Send,
+  Activity,
+  Zap
 };
 
 // Handle the alias for 'Link' to avoid conflicts

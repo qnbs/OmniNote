@@ -1,12 +1,11 @@
 
-import React, { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
-import { Note } from '../types';
+import React, { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef, createContext, useContext } from 'react';
+import { Note } from '../core/types/note';
 import { Eye, Pencil, Save, SmilePlus, ChevronDown, FileDown, ChevronLeft } from './icons';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
-import { useNotes } from '../contexts/NoteContext';
-import { useToast } from '../contexts/ToastContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { useAppDispatch, useAppSelector } from '../core/store/hooks';
+import { updateNote, addTemplate } from '../features/notes/noteSlice';
 import NoteEditorToolbar from './NoteEditorToolbar';
 import IconPicker from './IconPicker';
 import { useLocale } from '../contexts/LocaleContext';
@@ -27,45 +26,47 @@ interface NoteEditorProps {
   onSelectNote: (id: string) => void;
 }
 
-const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNotes, onSelectNote }, ref) => {
-  const { updateNote, addTemplate } = useNotes();
-  const { addToast } = useToast();
-  const { settings } = useSettings();
-  const { t, locale } = useLocale();
-  const [title, setTitle] = useState(note.title);
-  const [content, setContent] = useState(note.content);
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>(settings.defaultEditorView);
-  const [isIconPickerOpen, setIconPickerOpen] = useState(false);
-  const [isMenuOpen, setMenuOpen] = useState(false);
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-  const previewRef = useRef<HTMLDivElement>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [debouncedContent, setDebouncedContent] = useState(content);
-  const isSyncingScrollRef = useRef(false);
+// --- Logic Hook ---
+const useNoteEditor = (note: Note, allNotes: Note[], onSelectNote: (id: string) => void, ref: React.ForwardedRef<NoteEditorHandle>) => {
+    const dispatch = useAppDispatch();
+    const settings = useAppSelector(state => state.settings);
+    const { t, locale } = useLocale();
+    
+    const [title, setTitle] = useState(note.title);
+    const [content, setContent] = useState(note.content);
+    const [viewMode, setViewMode] = useState<'edit' | 'preview'>(settings.defaultEditorView);
+    const [isIconPickerOpen, setIconPickerOpen] = useState(false);
+    const [isMenuOpen, setMenuOpen] = useState(false);
+    
+    const contentRef = useRef<HTMLTextAreaElement>(null);
+    const previewRef = useRef<HTMLDivElement>(null);
+    const titleRef = useRef<HTMLInputElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [debouncedContent, setDebouncedContent] = useState(content);
+    const isSyncingScrollRef = useRef(false);
 
+    useImperativeHandle(ref, () => ({
+        focusTitle: () => {
+            titleRef.current?.focus();
+            titleRef.current?.select();
+        },
+    }));
 
-  useImperativeHandle(ref, () => ({
-    focusTitle: () => {
-      titleRef.current?.focus();
-      titleRef.current?.select();
-    },
-  }));
+    useEffect(() => {
+        setTitle(note.title);
+        setContent(note.content);
+        setDebouncedContent(note.content);
+        setViewMode(settings.defaultEditorView);
+    }, [note.id, settings.defaultEditorView]); 
 
-  useEffect(() => {
-    setTitle(note.title);
-    setContent(note.content);
-    setViewMode(settings.defaultEditorView);
-  }, [note, settings.defaultEditorView]);
-  
-  useEffect(() => {
-    const identifier = setTimeout(() => {
-      setDebouncedContent(content);
-    }, 300);
-    return () => clearTimeout(identifier);
-  }, [content]);
+    useEffect(() => {
+        const identifier = setTimeout(() => {
+            setDebouncedContent(content);
+        }, 300);
+        return () => clearTimeout(identifier);
+    }, [content]);
 
-   useEffect(() => {
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
                 setMenuOpen(false);
@@ -75,37 +76,26 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    useEffect(() => {
+        const identifier = setTimeout(() => {
+            if (title !== note.title || content !== note.content) {
+                dispatch(updateNote({ ...note, title, content }));
+            }
+        }, settings.autoSaveDelay);
+        return () => clearTimeout(identifier);
+    }, [title, content, dispatch, note, settings.autoSaveDelay]);
 
-  const handleUpdate = useCallback((updatedFields: Partial<Note>) => {
-      const newNote = { ...note, ...updatedFields };
-      if (JSON.stringify(newNote) !== JSON.stringify(note)) {
-          updateNote(newNote);
-          addToast(t('toast.noteSaved'), 'success', 1000);
-      }
-  }, [note, updateNote, addToast, t]);
+    const handleIconSelect = useCallback((iconName: string) => {
+        dispatch(updateNote({ ...note, icon: iconName }));
+        setIconPickerOpen(false);
+    }, [dispatch, note]);
 
-  useEffect(() => {
-    const identifier = setTimeout(() => {
-        if (title !== note.title || content !== note.content) {
-            handleUpdate({ title, content });
-        }
-    }, settings.autoSaveDelay);
-    return () => clearTimeout(identifier);
-  }, [title, content, handleUpdate, settings.autoSaveDelay, note.title, note.content]);
+    const handleSaveAsTemplate = useCallback(() => {
+        dispatch(addTemplate(note));
+        setMenuOpen(false);
+    }, [dispatch, note]);
 
-
-  const handleIconSelect = (iconName: string) => {
-    updateNote({ ...note, icon: iconName });
-    setIconPickerOpen(false);
-  }
-
-  const handleSaveAsTemplate = () => {
-    addTemplate(note);
-    addToast(t('toast.templateSaved', { title: note.title }), 'success');
-    setMenuOpen(false);
-  }
-
-   const handleExportMarkdown = () => {
+    const handleExportMarkdown = useCallback(() => {
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -117,255 +107,259 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
         setMenuOpen(false);
-    };
+    }, [content, title]);
 
-  useEffect(() => {
-    if (viewMode === 'preview' && previewRef.current) {
-        if(typeof hljs !== 'undefined') {
-            previewRef.current.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block as HTMLElement);
-            });
-        }
-
-        const handlePreviewClick = (e: MouseEvent) => {
-            const target = e.target as HTMLElement;
-            const link = target.closest('a[data-note-id]');
-            if (link) {
-                e.preventDefault();
-                const targetNoteId = link.getAttribute('data-note-id');
-                if (targetNoteId) {
-                    onSelectNote(targetNoteId);
-                }
+    useEffect(() => {
+        if (viewMode === 'preview' && previewRef.current) {
+            if(typeof hljs !== 'undefined') {
+                previewRef.current.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block as HTMLElement);
+                });
             }
-        };
 
-        const currentPreviewRef = previewRef.current;
-        currentPreviewRef.addEventListener('click', handlePreviewClick);
-        return () => {
-            currentPreviewRef.removeEventListener('click', handlePreviewClick);
-        };
-    }
-  }, [debouncedContent, viewMode, onSelectNote, settings.font, settings.editorFontSize]);
+            const handlePreviewClick = (e: MouseEvent) => {
+                const target = e.target as HTMLElement;
+                const link = target.closest('a[data-note-id]');
+                if (link) {
+                    e.preventDefault();
+                    const targetNoteId = link.getAttribute('data-note-id');
+                    if (targetNoteId) {
+                        onSelectNote(targetNoteId);
+                    }
+                }
+            };
 
+            const currentPreviewRef = previewRef.current;
+            currentPreviewRef.addEventListener('click', handlePreviewClick);
+            return () => {
+                currentPreviewRef.removeEventListener('click', handlePreviewClick);
+            };
+        }
+    }, [debouncedContent, viewMode, onSelectNote, settings.font, settings.editorFontSize]);
 
-  const parsedContent = useMemo(() => {
-      const rawHtml = marked.parse(debouncedContent) as string;
-      const sanitizedHtml = DOMPurify.sanitize(rawHtml);
-      return sanitizedHtml.replace(WIKI_LINK_REGEX, (match, linkTitle) => {
-        const linkedNote = findNoteByTitle(allNotes, linkTitle);
-        if (linkedNote) {
-          return `<a href="#" data-note-id="${linkedNote.id}" class="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1 py-0.5 rounded hover:underline font-medium transition-colors">${linkTitle}</a>`;
+    const parsedContent = useMemo(() => {
+        const rawHtml = marked.parse(debouncedContent) as string;
+        const sanitizedHtml = DOMPurify.sanitize(rawHtml);
+        return sanitizedHtml.replace(WIKI_LINK_REGEX, (match, linkTitle) => {
+            const linkedNote = findNoteByTitle(allNotes, linkTitle);
+            if (linkedNote) {
+            return `<a href="#" data-note-id="${linkedNote.id}" class="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1 py-0.5 rounded hover:underline font-medium transition-colors">${linkTitle}</a>`;
+            } else {
+            return `<span class="text-red-500 bg-red-50 dark:bg-red-900/20 px-1 py-0.5 rounded border border-red-100 dark:border-red-900/30 cursor-help" title="${t('editor.brokenLinkTitle')}">${linkTitle}</span>`;
+            }
+        });
+    }, [debouncedContent, allNotes, t]);
+
+    const syncScroll = useCallback((source: 'editor' | 'preview') => {
+        if (isSyncingScrollRef.current) return;
+        isSyncingScrollRef.current = true;
+
+        const editor = contentRef.current;
+        const preview = previewRef.current;
+        if (!editor || !preview) return;
+
+        if (source === 'editor') {
+            const scrollableDist = editor.scrollHeight - editor.clientHeight;
+            if (scrollableDist <= 0) return;
+            const scrollPercent = editor.scrollTop / scrollableDist;
+            preview.scrollTop = scrollPercent * (preview.scrollHeight - preview.clientHeight);
         } else {
-          return `<span class="text-red-500 bg-red-50 dark:bg-red-900/20 px-1 py-0.5 rounded border border-red-100 dark:border-red-900/30 cursor-help" title="${t('editor.brokenLinkTitle')}">${linkTitle}</span>`;
+            const scrollableDist = preview.scrollHeight - preview.clientHeight;
+            if (scrollableDist <= 0) return;
+            const scrollPercent = preview.scrollTop / scrollableDist;
+            editor.scrollTop = scrollPercent * (editor.scrollHeight - editor.clientHeight);
         }
-      });
-  }, [debouncedContent, allNotes, t]);
-  
-  const fontClasses: Record<string, string> = {
-      'system-ui': 'font-sans',
-      'serif': 'font-serif',
-      'monospace': 'font-mono',
-  }
-  
-  const fontSizeClasses: Record<string, string> = {
-      'small': 'text-sm',
-      'medium': 'text-base',
-      'large': 'text-lg',
-  }
 
-  const wordCount = useMemo(() => content.trim() ? content.trim().split(/\s+/).length : 0, [content]);
-  const charCount = useMemo(() => content.length, [content]);
-  
-  const formattedDate = useMemo(() => {
-    try {
-      return new Date(note.updatedAt).toLocaleString(locale);
-    } catch (e) {
-      return 'Invalid Date';
-    }
-  }, [note.updatedAt, locale]);
-
-  const syncScroll = (source: 'editor' | 'preview') => {
-    if (isSyncingScrollRef.current) return;
-    isSyncingScrollRef.current = true;
-
-    const editor = contentRef.current;
-    const preview = previewRef.current;
-    if (!editor || !preview) return;
-
-    if (source === 'editor') {
-        const scrollableDist = editor.scrollHeight - editor.clientHeight;
-        if (scrollableDist <= 0) return;
-        const scrollPercent = editor.scrollTop / scrollableDist;
-        preview.scrollTop = scrollPercent * (preview.scrollHeight - preview.clientHeight);
-    } else {
-        const scrollableDist = preview.scrollHeight - preview.clientHeight;
-        if (scrollableDist <= 0) return;
-        const scrollPercent = preview.scrollTop / scrollableDist;
-        editor.scrollTop = scrollPercent * (editor.scrollHeight - editor.clientHeight);
-    }
-
-    setTimeout(() => {
-        isSyncingScrollRef.current = false;
-    }, 100);
-  };
-  
-  const applyMarkdown = useCallback((syntax: { prefix: string; suffix?: string; placeholder?: string }) => {
-    const textarea = contentRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selectedText = value.substring(selectionStart, selectionEnd);
-    const placeholder = syntax.placeholder || 'text';
-    const textToInsert = selectedText || placeholder;
+        setTimeout(() => {
+            isSyncingScrollRef.current = false;
+        }, 100);
+    }, []);
     
-    const newText = `${value.substring(0, selectionStart)}${syntax.prefix}${textToInsert}${syntax.suffix || ''}${value.substring(selectionEnd)}`;
-    
-    setContent(newText);
-    
-    setTimeout(() => {
-        textarea.focus();
-        if (selectedText) {
-            textarea.setSelectionRange(selectionStart + syntax.prefix.length, selectionEnd + syntax.prefix.length);
-        } else {
-            textarea.setSelectionRange(selectionStart + syntax.prefix.length, selectionStart + syntax.prefix.length + placeholder.length);
-        }
-    }, 0);
-  }, []);
+    const applyMarkdown = useCallback((syntax: { prefix: string; suffix?: string; placeholder?: string }) => {
+        const textarea = contentRef.current;
+        if (!textarea) return;
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-        const isEditorFocused = document.activeElement === contentRef.current || document.activeElement === titleRef.current;
-        if (!isEditorFocused) return;
+        const { selectionStart, selectionEnd, value } = textarea;
+        const selectedText = value.substring(selectionStart, selectionEnd);
+        const placeholder = syntax.placeholder || 'text';
+        const textToInsert = selectedText || placeholder;
         
-        const isModifier = event.metaKey || event.ctrlKey;
+        const newText = `${value.substring(0, selectionStart)}${syntax.prefix}${textToInsert}${syntax.suffix || ''}${value.substring(selectionEnd)}`;
         
-        if (isModifier && event.key.toLowerCase() === 'enter') {
-            event.preventDefault();
-            setViewMode(prev => prev === 'edit' ? 'preview' : 'edit');
+        setContent(newText);
+        
+        setTimeout(() => {
+            textarea.focus();
+            if (selectedText) {
+                textarea.setSelectionRange(selectionStart + syntax.prefix.length, selectionEnd + syntax.prefix.length);
+            } else {
+                textarea.setSelectionRange(selectionStart + syntax.prefix.length, selectionStart + syntax.prefix.length + placeholder.length);
+            }
+        }, 0);
+    }, []);
+
+    const wordCount = useMemo(() => content.trim() ? content.trim().split(/\s+/).length : 0, [content]);
+    const charCount = useMemo(() => content.length, [content]);
+    const formattedDate = useMemo(() => {
+        try {
+            return new Date(note.updatedAt).toLocaleString(locale);
+        } catch (e) {
+            return 'Invalid Date';
         }
-        if (isModifier && event.key.toLowerCase() === 'b') {
-            event.preventDefault();
-            applyMarkdown({ prefix: '**', suffix: '**', placeholder: 'bold text' });
-        }
-        if (isModifier && event.key.toLowerCase() === 'i') {
-            event.preventDefault();
-            applyMarkdown({ prefix: '*', suffix: '*', placeholder: 'italic text' });
-        }
+    }, [note.updatedAt, locale]);
+
+    return {
+        title, setTitle,
+        content, setContent,
+        viewMode, setViewMode,
+        isIconPickerOpen, setIconPickerOpen,
+        isMenuOpen, setMenuOpen,
+        contentRef, previewRef, titleRef, menuRef,
+        parsedContent,
+        wordCount, charCount, formattedDate,
+        syncScroll, applyMarkdown,
+        handleIconSelect, handleSaveAsTemplate, handleExportMarkdown,
+        settings, t, onSelectNote
     };
+}
+
+// --- Context ---
+type NoteEditorContextType = ReturnType<typeof useNoteEditor>;
+const NoteEditorContext = createContext<NoteEditorContextType | null>(null);
+const useEditorContext = () => {
+    const ctx = useContext(NoteEditorContext);
+    if (!ctx) throw new Error("useEditorContext must be used within NoteEditor");
+    return ctx;
+}
+
+// --- Components ---
+
+const EditorHeader = () => {
+    const { title, setTitle, t, isIconPickerOpen, setIconPickerOpen, handleIconSelect, onSelectNote, settings, titleRef } = useEditorContext();
     
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [applyMarkdown]);
+    const fontClasses: Record<string, string> = {
+        'system-ui': 'font-sans',
+        'serif': 'font-serif',
+        'monospace': 'font-mono',
+    };
 
+    return (
+        <div className='flex justify-between items-start gap-2 sm:gap-4'>
+            <button 
+                onClick={() => onSelectNote('')} 
+                className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 mr-1 flex-shrink-0"
+                aria-label={t('back')}
+            >
+                <ChevronLeft className="h-6 w-6" />
+            </button>
 
-
-  return (
-    <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-950">
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
-          <div className="flex flex-col p-2 sm:px-6 sm:pt-4 sm:pb-2">
-            <div className='flex justify-between items-start gap-2 sm:gap-4'>
+            <div className="relative flex-1 flex items-center group min-w-0">
                 <button 
-                    onClick={() => onSelectNote('')} 
-                    className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 mr-1 flex-shrink-0"
-                    aria-label={t('back')}
+                    onClick={() => setIconPickerOpen(true)}
+                    className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 mr-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors flex-shrink-0"
+                    aria-label={t('editor.chooseIcon')}
                 >
-                    <ChevronLeft className="h-6 w-6" />
+                    <SmilePlus className="h-6 w-6" />
                 </button>
+                {isIconPickerOpen && <IconPicker onSelect={handleIconSelect} onClose={() => setIconPickerOpen(false)} />}
+                
+                <input
+                    ref={titleRef}
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t('editor.titlePlaceholder')}
+                    className={`w-full text-lg sm:text-2xl md:text-3xl font-bold bg-transparent focus:outline-none placeholder-slate-300 dark:placeholder-slate-700 text-slate-900 dark:text-white truncate ${fontClasses[settings.font]}`}
+                />
+            </div>
+        </div>
+    );
+};
 
-                <div className="relative flex-1 flex items-center group min-w-0">
-                    <button 
-                        onClick={() => setIconPickerOpen(true)}
-                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 mr-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors flex-shrink-0"
-                        aria-label={t('editor.chooseIcon')}
-                    >
-                        <SmilePlus className="h-6 w-6" />
-                    </button>
-                    {isIconPickerOpen && <IconPicker onSelect={handleIconSelect} onClose={() => setIconPickerOpen(false)} />}
-                    
-                    <input
-                        ref={titleRef}
-                        type="text"
-                        value={title}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder={t('editor.titlePlaceholder')}
-                        className={`w-full text-lg sm:text-2xl md:text-3xl font-bold bg-transparent focus:outline-none placeholder-slate-300 dark:placeholder-slate-700 text-slate-900 dark:text-white truncate ${fontClasses[settings.font]}`}
-                    />
-                </div>
-            
-                <div className="flex items-center gap-2 flex-shrink-0 mt-1">
-                    <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
-                        <button
-                        onClick={() => setViewMode('edit')}
-                        aria-pressed={viewMode === 'edit'}
-                        className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        title={t('editor.edit')}
-                        >
-                        <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                        onClick={() => setViewMode('preview')}
-                        aria-pressed={viewMode === 'preview'}
-                        className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
-                        title={t('editor.preview')}
-                        >
-                        <Eye className="h-4 w-4" />
-                        </button>
-                    </div>
-                    
-                    <div className="relative" ref={menuRef}>
-                        <button onClick={() => setMenuOpen(!isMenuOpen)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 transition-colors">
-                            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
-                        </button>
-                        {isMenuOpen && (
-                            <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
-                                <button onClick={handleSaveAsTemplate} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800">
-                                    <Save className="h-4 w-4 text-slate-400" /> {t('editor.saveAsTemplate')}
-                                </button>
-                                <button onClick={handleExportMarkdown} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3">
-                                    <FileDown className="h-4 w-4 text-slate-400" /> {t('editor.exportMarkdown')}
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </div>
+const EditorControls = () => {
+    const { viewMode, setViewMode, isMenuOpen, setMenuOpen, handleSaveAsTemplate, handleExportMarkdown, menuRef, t } = useEditorContext();
+
+    return (
+        <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                <button
+                onClick={() => setViewMode('edit')}
+                aria-pressed={viewMode === 'edit'}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                title={t('editor.edit')}
+                >
+                <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                onClick={() => setViewMode('preview')}
+                aria-pressed={viewMode === 'preview'}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                title={t('editor.preview')}
+                >
+                <Eye className="h-4 w-4" />
+                </button>
             </div>
             
-            {/* Inline Toolbar for Edit Mode */}
-            {viewMode === 'edit' && (
-                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/50">
-                    <NoteEditorToolbar onApplyMarkdown={applyMarkdown} />
-                </div>
-            )}
-          </div>
-      </div>
+            <div className="relative" ref={menuRef}>
+                <button onClick={() => setMenuOpen(!isMenuOpen)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 transition-colors">
+                    <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+                {isMenuOpen && (
+                    <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                        <button onClick={handleSaveAsTemplate} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800">
+                            <Save className="h-4 w-4 text-slate-400" /> {t('editor.saveAsTemplate')}
+                        </button>
+                        <button onClick={handleExportMarkdown} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3">
+                            <FileDown className="h-4 w-4 text-slate-400" /> {t('editor.exportMarkdown')}
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
 
-      <div className="flex-1 flex flex-col overflow-hidden relative">
-          {viewMode === 'edit' ? (
-            <textarea
-                ref={contentRef}
-                value={content}
-                onScroll={() => syncScroll('editor')}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder={t('editor.contentPlaceholder')}
-                className={`
-                    flex-1 w-full h-full bg-transparent focus:outline-none resize-none leading-relaxed p-4 sm:px-8 sm:py-6 overflow-y-auto
-                    ${fontClasses[settings.font]}
-                    ${fontSizeClasses[settings.editorFontSize]}
-                    ${settings.focusMode ? 'focus-mode' : ''}
-                `}
-                aria-label={t('editor.contentAriaLabel')}
-            />
-          ) : (
-            <div
-              ref={previewRef}
-              onScroll={() => syncScroll('preview')}
-              className={`prose prose-slate dark:prose-invert max-w-3xl mx-auto w-full p-4 sm:px-8 sm:py-6 overflow-y-auto h-full ${fontClasses[settings.font]} ${fontSizeClasses[settings.editorFontSize]}`}
-              dangerouslySetInnerHTML={{ __html: parsedContent }}
-            />
-          )}
-          
-          <style>{`
+const EditorWorkplace = () => {
+    const { viewMode, content, setContent, syncScroll, contentRef, previewRef, parsedContent, settings, t } = useEditorContext();
+    
+    const fontClasses: Record<string, string> = {
+        'system-ui': 'font-sans',
+        'serif': 'font-serif',
+        'monospace': 'font-mono',
+    };
+    
+    const fontSizeClasses: Record<string, string> = {
+        'small': 'text-sm',
+        'medium': 'text-base',
+        'large': 'text-lg',
+    };
+
+    return (
+        <div className="flex-1 flex flex-col overflow-hidden relative">
+            {viewMode === 'edit' ? (
+                <textarea
+                    ref={contentRef}
+                    value={content}
+                    onScroll={() => syncScroll('editor')}
+                    onChange={(e) => setContent(e.target.value)}
+                    placeholder={t('editor.contentPlaceholder')}
+                    className={`
+                        flex-1 w-full h-full bg-transparent focus:outline-none resize-none leading-relaxed p-4 sm:px-8 sm:py-6 overflow-y-auto
+                        ${fontClasses[settings.font]}
+                        ${fontSizeClasses[settings.editorFontSize]}
+                        ${settings.focusMode ? 'focus-mode' : ''}
+                    `}
+                    aria-label={t('editor.contentAriaLabel')}
+                />
+            ) : (
+                <div
+                    ref={previewRef}
+                    onScroll={() => syncScroll('preview')}
+                    className={`prose prose-slate dark:prose-invert max-w-3xl mx-auto w-full p-4 sm:px-8 sm:py-6 overflow-y-auto h-full ${fontClasses[settings.font]} ${fontSizeClasses[settings.editorFontSize]}`}
+                    dangerouslySetInnerHTML={{ __html: parsedContent }}
+                />
+            )}
+             <style>{`
                 .focus-mode:focus {
                     color: inherit;
                 }
@@ -374,18 +368,49 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
                     transition: color 0.3s ease;
                 }
           `}</style>
-      </div>
-        {settings.showWordCount && (
-            <div className="py-2 px-6 border-t border-slate-100 dark:border-slate-900 text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-600 flex justify-end gap-4 bg-white dark:bg-slate-950">
-                <span>{t('editor.words')}: {wordCount}</span>
-                <span className="text-slate-200 dark:text-slate-800">|</span>
-                <span>{t('editor.characters')}: {charCount}</span>
-                <span className="text-slate-200 dark:text-slate-800">|</span>
-                <span>{t('editor.lastUpdated')}: {formattedDate}</span>
+        </div>
+    )
+}
+
+const EditorFooter = () => {
+    const { settings, wordCount, charCount, formattedDate, t } = useEditorContext();
+    if (!settings.showWordCount) return null;
+
+    return (
+        <div className="py-2 px-6 border-t border-slate-100 dark:border-slate-900 text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-600 flex justify-end gap-4 bg-white dark:bg-slate-950">
+            <span>{t('editor.words')}: {wordCount}</span>
+            <span className="text-slate-200 dark:text-slate-800">|</span>
+            <span>{t('editor.characters')}: {charCount}</span>
+            <span className="text-slate-200 dark:text-slate-800">|</span>
+            <span>{t('editor.lastUpdated')}: {formattedDate}</span>
+        </div>
+    );
+};
+
+const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>((props, ref) => {
+    const logic = useNoteEditor(props.note, props.allNotes, props.onSelectNote, ref);
+
+    return (
+        <NoteEditorContext.Provider value={logic}>
+            <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-950">
+                <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-col p-2 sm:px-6 sm:pt-4 sm:pb-2">
+                        <div className='flex justify-between items-start gap-2 sm:gap-4'>
+                            <EditorHeader />
+                            <EditorControls />
+                        </div>
+                        {logic.viewMode === 'edit' && (
+                            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/50">
+                                <NoteEditorToolbar onApplyMarkdown={logic.applyMarkdown} />
+                            </div>
+                        )}
+                    </div>
+                </div>
+                <EditorWorkplace />
+                <EditorFooter />
             </div>
-        )}
-    </div>
-  );
+        </NoteEditorContext.Provider>
+    );
 });
 
 export default NoteEditor;

@@ -1,9 +1,8 @@
-
 {
     "appTitle": "OmniNote - AI-Powered Notes",
     "untitledNote": "Untitled Note",
     "newFromTemplatePrefix": "New from",
-    "working": "Working...",
+    "working": "Processing...",
     "error": "Error",
     "cancel": "Cancel",
     "delete": "Delete",
@@ -90,8 +89,8 @@
             "history": "History"
         },
         "close": "Close sidebar",
-        "graphSettings": "Graph Settings",
-        "repulsion": "Repulsion",
+        "graphSettings": "Graph Topology",
+        "repulsion": "Node Repulsion",
         "linkDistance": "Link Distance"
     },
     "graph": {
@@ -147,7 +146,7 @@
         "tabs": {
             "appearance": "Appearance",
             "editor": "Editor",
-            "ai": "AI",
+            "ai": "AI Intelligence",
             "data": "Data"
         },
         "appearance": {
@@ -159,7 +158,7 @@
                 "comfortable": "Comfortable"
             },
             "font": {
-                "label": "Application Font",
+                "label": "Typography",
                 "system": "System Default",
                 "serif": "Serif",
                 "monospace": "Monospace"
@@ -168,7 +167,7 @@
         },
         "editor": {
             "title": "Editor",
-            "autoSaveDelay": "Auto-save Delay",
+            "autoSaveDelay": "Auto-save Latency",
             "fontSize": "Font Size",
             "fontSizes": {
                 "small": "Small",
@@ -189,15 +188,15 @@
                 "description": "Download your data as a JSON file. Keep it safe as a backup.",
                 "button": "Export Data",
                 "types": {
-                    "all": "All",
-                    "notes": "Notes",
-                    "templates": "Templates",
-                    "settings": "Settings"
+                    "all": "Full Backup",
+                    "notes": "Notes Only",
+                    "templates": "Templates Only",
+                    "settings": "Settings Only"
                 }
             },
             "import": {
                 "title": "Import Data",
-                "warning": "Importing will add new notes and templates from the file. It will not overwrite existing items.",
+                "warning": "Importing will merge new notes and templates. Existing items will not be overwritten.",
                 "button": "Import Data"
             }
         }
@@ -286,8 +285,7 @@
     },
     "aiPanel": {
         "selectNote": "Select a note to use AI features.",
-        "settings": "Agent Settings",
-        "working": "Working...",
+        "settings": "Agent Configuration",
         "apiKeyMissing": "API Key not configured. AI features are disabled.",
         "error": {
             "prefix": "Failed to run {{agentName}} agent. Please try again.",
@@ -299,7 +297,7 @@
             "append": "Append to note",
             "appendChecklist": "Append as checklist",
             "replace": "Replace Note Content",
-            "replaceNote": "Replace Note Content & Title"
+            "replaceNote": "Replace Content & Title"
         },
         "recipes": {
             "title": "AI Recipes",
@@ -313,51 +311,52 @@
             "button": "Analyze Note",
             "settings": {
                 "summaryLength": "Summary Length",
-                "short": "Short",
-                "detailed": "Detailed"
+                "short": "Concise",
+                "detailed": "Comprehensive"
             },
-            "summary": "Summary",
-            "tags": "Suggested Tags",
+            "summary": "Executive Summary",
+            "tags": "Taxonomy",
             "summaryTitle": "AI Summary"
         },
         "creative": {
             "title": "Creative Agent",
             "button": "Brainstorm Ideas",
             "settings": {
-                "ideaCount": "Number of Ideas"
+                "ideaCount": "Output Volume"
             },
-            "idea": "Idea"
+            "idea": "Concept"
         },
         "image": {
             "title": "Image Agent",
             "button": "Generate Image",
             "settings": {
-                "style": "Image Style",
+                "style": "Visual Style",
                 "aspectRatio": "Aspect Ratio"
             },
             "styles": {
-                "default": "Default",
+                "default": "Cinematic",
                 "photorealistic": "Photorealistic",
                 "watercolor": "Watercolor",
-                "anime": "Anime"
+                "anime": "Anime",
+                "cyberpunk": "Cyberpunk"
             },
-            "generating": "Painting your vision...",
-            "patience": "This might take a moment.",
-            "altText": "Generated Image"
+            "generating": "Dreaming in pixels...",
+            "patience": "Rendering high-fidelity output...",
+            "altText": "Generated Visualization"
         },
         "plan": {
             "title": "Planner Agent",
-            "button": "Create Action Plan",
+            "button": "Create Strategy",
             "settings": {
-                "detail": "Plan Detail",
-                "simple": "Simple",
-                "detailed": "Detailed"
+                "detail": "Granularity",
+                "simple": "Tactical (Simple)",
+                "strategic": "Strategic (Deep)"
             },
             "task": "Task",
-            "checklistTitle": "Action Plan"
+            "checklistTitle": "Strategic Plan"
         },
         "translate": {
-            "title": "Translator Agent",
+            "title": "Linguist Agent",
             "button": "Translate",
             "settings": {
                 "targetLanguage": "Target Language"
@@ -367,53 +366,83 @@
         },
         "format": {
             "title": "Formatter Agent",
-            "button": "Format Note",
-            "loading": "Formatting...",
+            "button": "Auto-Format",
+            "loading": "Refactoring...",
             "formattedText": "Formatted text"
         },
         "research": {
             "title": "Research Agent",
-            "button": "Find Resources",
-            "loading": "Researching...",
-            "sources": "Sources",
-            "notFound": "No online results found for this topic. Try refining your note content for better research results."
+            "button": "Find Sources",
+            "loading": "Consulting Knowledge Base...",
+            "sources": "Citations",
+            "notFound": "No authoritative sources found. Refine your query."
         },
         "chat": {
-            "title": "Chat with Note",
-            "placeholder": "Ask questions about your note...",
+            "title": "Contextual Chat",
+            "placeholder": "Query this note...",
             "inputPlaceholder": "Ask a question...",
-            "clear": "Clear Chat",
+            "clear": "Clear History",
+            "emptyState": "Ask me anything about this note.",
             "send": "Send",
-            "thinking": "Thinking..."
+            "thinking": "Thinking...",
+            "personas": {
+                "helpful": "Helpful Assistant",
+                "socratic": "Socratic Mentor",
+                "critic": "Critical Reviewer",
+                "coder": "Senior Engineer"
+            }
+        },
+        "thinking": {
+            "phase1": "Analyzing context...",
+            "phase2": "Consulting knowledge base...",
+            "phase3": "Synthesizing patterns...",
+            "phase4": "Formulating response...",
+            "phase5": "Refining output..."
+        },
+        "settings": {
+            "depth": "Analysis Depth",
+            "standard": "Standard",
+            "deep": "Deep Analysis",
+            "detailLevel": "Plan Granularity",
+            "simple": "Tactical",
+            "strategic": "Strategic",
+            "temperature": "Temperature",
+            "hdQuality": "HD Quality (Pro)",
+            "persona": "Agent Persona",
+            "creativeLevels": {
+                "conservative": "Conservative",
+                "balanced": "Balanced",
+                "wild": "Experimental"
+            }
         }
     },
     "toast": {
-        "noteSaved": "Note saved!",
-        "templateSaved": "Template \"{{title}}\" saved!",
-        "noteDeleted": "Note deleted.",
-        "exportSuccess": "Export successful!",
-        "exportFailed": "Export failed. See console for details.",
-        "noteHasNoContent": "Please select a note with content.",
-        "tagsApplied": "Tags applied successfully!",
-        "summaryPrepended": "Summary prepended to note!",
-        "checklistAppended": "Checklist appended to note!",
-        "noteContentUpdated": "Note content updated!",
-        "recipeResultApplied": "Note updated with recipe result!",
-        "imageAppended": "Image appended to note!",
-        "copied": "{{type}} copied to clipboard!",
-        "noteRestored": "Note restored to a previous version!",
-        "selectFile": "Please select a file to import.",
-        "fileReadError": "File could not be read.",
-        "invalidFileFormat": "Invalid file format: must be a JSON object.",
-        "importSuccess": "Import successful!",
-        "importReport": "Import complete: {{notes}} notes and {{templates}} templates added.",
-        "importFailedDetails": "Import failed: {{message}}",
-        "batchDeleteSuccess": "{{count}} notes deleted.",
-        "batchPinSuccess": "{{count}} notes pinned.",
-        "batchUnpinSuccess": "{{count}} notes unpinned.",
-        "batchTagSuccess": "Tag '{{tag}}' added to {{count}} notes.",
-        "emptyTagError": "Cannot add an empty tag.",
-        "aiAgentTriggered": "{{agentName}} triggered for current note."
+        "noteSaved": "Note saved.",
+        "templateSaved": "Template \"{{title}}\" saved.",
+        "noteDeleted": "Note moved to trash.",
+        "exportSuccess": "Data exported successfully.",
+        "exportFailed": "Export failed. Check console.",
+        "noteHasNoContent": "Note is empty.",
+        "tagsApplied": "Tags applied.",
+        "summaryPrepended": "Summary added.",
+        "checklistAppended": "Plan appended.",
+        "noteContentUpdated": "Content updated.",
+        "recipeResultApplied": "Recipe applied.",
+        "imageAppended": "Image inserted.",
+        "copied": "{{type}} copied.",
+        "noteRestored": "Version restored.",
+        "selectFile": "Select a file.",
+        "fileReadError": "Read error.",
+        "invalidFileFormat": "Invalid format.",
+        "importSuccess": "Import complete.",
+        "importReport": "Imported {{notes}} notes and {{templates}} templates.",
+        "importFailedDetails": "Import error: {{message}}",
+        "batchDeleteSuccess": "Deleted {{count}} notes.",
+        "batchPinSuccess": "Pinned {{count}} notes.",
+        "batchUnpinSuccess": "Unpinned {{count}} notes.",
+        "batchTagSuccess": "Tagged {{count}} notes with '{{tag}}'.",
+        "emptyTagError": "Tag cannot be empty.",
+        "aiAgentTriggered": "{{agentName}} agent activated."
     },
     "languages": {
         "english": "English",

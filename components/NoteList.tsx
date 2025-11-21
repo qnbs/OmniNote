@@ -1,12 +1,13 @@
 
-import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
-import { Note } from '../types';
+import React, { useMemo, useState, useRef, useEffect, useCallback, createContext, useContext } from 'react';
+import { Note } from '../core/types/note';
 import { Plus, NotebookPen, Pin, ChevronLeft, LayoutTemplate, CheckSquare as CheckSquareIcon, Trash2, Tag, PinOff } from './icons';
 import SearchNotes from './SearchNotes';
 import NoteListItem from './NoteListItem';
-import { useNotes } from '../contexts/NoteContext';
+import { useAppDispatch, useAppSelector } from '../core/store/hooks';
+import { selectAllTemplates, batchDeleteNotes, batchPinNotes, batchAddTag } from '../features/notes/noteSlice';
+import { addToast } from '../features/ui/uiSlice';
 import { useLocale } from '../contexts/LocaleContext';
-import { useToast } from '../contexts/ToastContext';
 
 interface NoteListProps {
   notes: Note[];
@@ -21,9 +22,100 @@ interface NoteListProps {
 
 type SortKey = 'updatedAt' | 'createdAt' | 'title';
 
-const NewNoteButton: React.FC<{onAddNote: (templateContent?: string, templateTitle?: string) => void}> = ({ onAddNote }) => {
-    const { templates } = useNotes();
+// --- Logic Hook ---
+const useNoteList = (props: NoteListProps) => {
+    const dispatch = useAppDispatch();
     const { t } = useLocale();
+    const templates = useAppSelector(selectAllTemplates);
+    
+    const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
+    const [isSelectMode, setIsSelectMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+    const tagInputRef = useRef<HTMLInputElement>(null);
+    
+    const sortedNotes = useMemo(() => {
+        return [...props.notes].sort((a, b) => {
+            if (sortKey === 'title') {
+                return a.title.localeCompare(b.title);
+            }
+            return new Date(b[sortKey]).getTime() - new Date(a[sortKey]).getTime();
+        });
+    }, [props.notes, sortKey]);
+
+    const pinnedNotes = useMemo(() => sortedNotes.filter(n => n.pinned), [sortedNotes]);
+    const unpinnedNotes = useMemo(() => sortedNotes.filter(n => !n.pinned), [sortedNotes]);
+
+    const toggleSelectMode = useCallback(() => {
+        setIsSelectMode(prev => !prev);
+        setSelectedIds(new Set());
+    }, []);
+
+    const handleSelectNoteItem = useCallback((id: string) => {
+        if (isSelectMode) {
+            setSelectedIds(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(id)) {
+                    newSet.delete(id);
+                } else {
+                    newSet.add(id);
+                }
+                return newSet;
+            });
+        } else {
+            props.onSelectNote(id);
+        }
+    }, [isSelectMode, props.onSelectNote]);
+
+    const handleBatchDelete = useCallback(() => {
+        const ids = Array.from(selectedIds);
+        dispatch(batchDeleteNotes(ids));
+        dispatch(addToast({ message: t('toast.batchDeleteSuccess', { count: ids.length }), type: 'success' }));
+        toggleSelectMode();
+    }, [dispatch, selectedIds, t, toggleSelectMode]);
+    
+    const handleBatchPin = useCallback((pin: boolean) => {
+        const ids = Array.from(selectedIds);
+        dispatch(batchPinNotes({ ids, pin }));
+        dispatch(addToast({ message: pin ? t('toast.batchPinSuccess', { count: ids.length }) : t('toast.batchUnpinSuccess', { count: ids.length }), type: 'success' }));
+        toggleSelectMode();
+    }, [dispatch, selectedIds, t, toggleSelectMode]);
+
+    const handleBatchAddTag = useCallback(() => {
+        const tag = tagInputRef.current?.value;
+        if (tag && tag.trim() !== '') {
+            const ids = Array.from(selectedIds);
+            dispatch(batchAddTag({ ids, tag: tag.trim() }));
+            dispatch(addToast({ message: t('toast.batchTagSuccess', { count: ids.length, tag: tag.trim() }), type: 'success' }));
+            toggleSelectMode();
+        } else {
+            dispatch(addToast({ message: t('toast.emptyTagError'), type: 'error' }));
+        }
+    }, [dispatch, selectedIds, t, toggleSelectMode]);
+
+    return {
+        ...props,
+        templates,
+        sortKey, setSortKey,
+        isSelectMode, toggleSelectMode,
+        selectedIds, handleSelectNoteItem,
+        pinnedNotes, unpinnedNotes,
+        handleBatchDelete, handleBatchPin, handleBatchAddTag, tagInputRef,
+        t
+    };
+}
+
+type NoteListContextType = ReturnType<typeof useNoteList>;
+const NoteListContext = createContext<NoteListContextType | null>(null);
+const useListContext = () => {
+    const ctx = useContext(NoteListContext);
+    if(!ctx) throw new Error("useListContext must be used within NoteList");
+    return ctx;
+}
+
+// --- Components ---
+
+const NewNoteButton: React.FC = () => {
+    const { onAddNote, templates, t } = useListContext();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -75,142 +167,45 @@ const NewNoteButton: React.FC<{onAddNote: (templateContent?: string, templateTit
     )
 }
 
-const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, onAddNote, onDeleteNote, onTogglePin, searchQuery, setSearchQuery }) => {
-  const { t } = useLocale();
-  const { batchDelete, batchTogglePin, batchAddTag } = useNotes();
-  const { addToast } = useToast();
-
-  const [sortKey, setSortKey] = useState<SortKey>('updatedAt');
-  const [isSelectMode, setIsSelectMode] = useState(false);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const tagInputRef = useRef<HTMLInputElement>(null);
-  
-  const sortedNotes = useMemo(() => {
-    return [...notes].sort((a, b) => {
-        if (sortKey === 'title') {
-            return a.title.localeCompare(b.title);
-        }
-        return new Date(b[sortKey]).getTime() - new Date(a[sortKey]).getTime();
-    });
-  }, [notes, sortKey]);
-
-  const pinnedNotes = useMemo(() => sortedNotes.filter(n => n.pinned), [sortedNotes]);
-  const unpinnedNotes = useMemo(() => sortedNotes.filter(n => !n.pinned), [sortedNotes]);
-  
-  const toggleSelectMode = useCallback(() => {
-    setIsSelectMode(prev => !prev);
-    setSelectedIds(new Set());
-  }, []);
-
-  const handleSelectNoteItem = useCallback((id: string) => {
-      if (isSelectMode) {
-          setSelectedIds(prev => {
-              const newSet = new Set(prev);
-              if (newSet.has(id)) {
-                  newSet.delete(id);
-              } else {
-                  newSet.add(id);
-              }
-              return newSet;
-          });
-      } else {
-          onSelectNote(id);
-      }
-  }, [isSelectMode, onSelectNote]);
-
-  const handleBatchDelete = useCallback(() => {
-      batchDelete(Array.from(selectedIds));
-      addToast(t('toast.batchDeleteSuccess', { count: selectedIds.size }), 'success');
-      toggleSelectMode();
-  }, [batchDelete, selectedIds, addToast, t, toggleSelectMode]);
-  
-  const handleBatchPin = useCallback((pin: boolean) => {
-      batchTogglePin(Array.from(selectedIds), pin);
-      addToast(pin ? t('toast.batchPinSuccess', { count: selectedIds.size }) : t('toast.batchUnpinSuccess', { count: selectedIds.size }), 'success');
-      toggleSelectMode();
-  }, [batchTogglePin, selectedIds, addToast, t, toggleSelectMode]);
-
-  const handleBatchAddTag = useCallback(() => {
-    const tag = tagInputRef.current?.value;
-    if (tag && tag.trim() !== '') {
-        batchAddTag(Array.from(selectedIds), tag.trim());
-        addToast(t('toast.batchTagSuccess', { count: selectedIds.size, tag: tag.trim() }), 'success');
-        toggleSelectMode();
-    } else {
-        addToast(t('toast.emptyTagError'), 'error');
-    }
-  }, [batchAddTag, selectedIds, addToast, t, toggleSelectMode]);
-
-
-  const renderNoteList = (notesToRender: Note[]) => {
-    return notesToRender.map(note => (
-        <NoteListItem
-          key={note.id}
-          note={note}
-          isActive={!isSelectMode && activeNoteId === note.id}
-          onSelectNote={handleSelectNoteItem}
-          onDeleteNote={onDeleteNote}
-          onTogglePin={onTogglePin}
-          searchQuery={searchQuery}
-          isSelectMode={isSelectMode}
-          isSelected={selectedIds.has(note.id)}
-        />
-      ));
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
-         <NewNoteButton onAddNote={onAddNote} />
-      </div>
-      <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3">
-        <SearchNotes query={searchQuery} onQueryChange={setSearchQuery} />
-        <div className="flex items-center justify-between">
-            <div>
-                <label htmlFor="sort-notes" className="sr-only">{t('noteList.sortBy')}</label>
-                <select 
-                    id="sort-notes" 
-                    value={sortKey} 
-                    onChange={e => setSortKey(e.target.value as SortKey)}
-                    className="text-xs bg-transparent dark:bg-slate-900 border-none focus:ring-0 text-slate-500 font-medium py-2"
-                >
-                    <option value="updatedAt">{t('noteList.sort.updated')}</option>
-                    <option value="createdAt">{t('noteList.sort.created')}</option>
-                    <option value="title">{t('noteList.sort.title')}</option>
-                </select>
+const NoteListHeader = () => {
+    const { searchQuery, setSearchQuery, sortKey, setSortKey, isSelectMode, toggleSelectMode, t } = useListContext();
+    
+    return (
+        <>
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                <NewNoteButton />
             </div>
-            <button onClick={toggleSelectMode} className="text-xs font-semibold text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-md hover:bg-primary-100/50 dark:hover:bg-primary-900/50 transition-colors">
-                {isSelectMode ? t('cancel') : t('noteList.select')}
-            </button>
-        </div>
-      </div>
-      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
-        {notes.length > 0 ? (
-          <>
-            {pinnedNotes.length > 0 && (
-                <div className="py-2">
-                    <h2 className="px-4 pt-2 pb-1 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.pinned')}</h2>
-                    {renderNoteList(pinnedNotes)}
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3">
+                <SearchNotes query={searchQuery} onQueryChange={setSearchQuery} />
+                <div className="flex items-center justify-between">
+                    <div>
+                        <label htmlFor="sort-notes" className="sr-only">{t('noteList.sortBy')}</label>
+                        <select 
+                            id="sort-notes" 
+                            value={sortKey} 
+                            onChange={e => setSortKey(e.target.value as SortKey)}
+                            className="text-xs bg-transparent dark:bg-slate-900 border-none focus:ring-0 text-slate-500 font-medium py-2"
+                        >
+                            <option value="updatedAt">{t('noteList.sort.updated')}</option>
+                            <option value="createdAt">{t('noteList.sort.created')}</option>
+                            <option value="title">{t('noteList.sort.title')}</option>
+                        </select>
+                    </div>
+                    <button onClick={toggleSelectMode} className="text-xs font-semibold text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-md hover:bg-primary-100/50 dark:hover:bg-primary-900/50 transition-colors">
+                        {isSelectMode ? t('cancel') : t('noteList.select')}
+                    </button>
                 </div>
-            )}
-             {pinnedNotes.length > 0 && unpinnedNotes.length > 0 && <div className="mx-4 my-2 border-t border-slate-200 dark:border-slate-800"></div>}
-            {unpinnedNotes.length > 0 && (
-                <div className="py-2">
-                     {pinnedNotes.length > 0 && <h2 className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.notes')}</h2>}
-                    {renderNoteList(unpinnedNotes)}
-                </div>
-            )}
-          </>
-        ) : (
-          <div className="text-center p-8 text-slate-500">
-              <NotebookPen className="mx-auto h-12 w-12 text-slate-400" />
-              <h3 className="mt-2 text-lg font-semibold">{t('noteList.noNotesFound')}</h3>
-              <p className="mt-1 text-sm">{searchQuery ? t('noteList.tryDifferentSearch') : t('noteList.clickNewNote')}</p>
-          </div>
-        )}
-      </div>
-      
-       {isSelectMode && selectedIds.size > 0 && (
+            </div>
+        </>
+    )
+}
+
+const BatchActionBar = () => {
+    const { isSelectMode, selectedIds, tagInputRef, handleBatchAddTag, handleBatchPin, handleBatchDelete, t } = useListContext();
+    
+    if (!isSelectMode || selectedIds.size === 0) return null;
+
+    return (
         <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-lg absolute bottom-0 left-0 right-0 z-20 pb-safe">
              <div className="text-sm font-semibold mb-2">{t('noteList.batch.selected', { count: selectedIds.size })}</div>
              <div className="space-y-3">
@@ -225,8 +220,67 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
                  </div>
              </div>
         </div>
-       )}
-    </div>
+    );
+}
+
+const NoteListContent = () => {
+    const { notes, pinnedNotes, unpinnedNotes, activeNoteId, searchQuery, isSelectMode, selectedIds, handleSelectNoteItem, onDeleteNote, onTogglePin, t } = useListContext();
+    
+    const renderNoteList = (notesToRender: Note[]) => {
+        return notesToRender.map(note => (
+            <NoteListItem
+              key={note.id}
+              note={note}
+              isActive={!isSelectMode && activeNoteId === note.id}
+              onSelectNote={handleSelectNoteItem}
+              onDeleteNote={onDeleteNote}
+              onTogglePin={onTogglePin}
+              searchQuery={searchQuery}
+              isSelectMode={isSelectMode}
+              isSelected={selectedIds.has(note.id)}
+            />
+          ));
+    }
+
+    return (
+        <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
+            {notes.length > 0 ? (
+            <>
+                {pinnedNotes.length > 0 && (
+                    <div className="py-2">
+                        <h2 className="px-4 pt-2 pb-1 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.pinned')}</h2>
+                        {renderNoteList(pinnedNotes)}
+                    </div>
+                )}
+                {pinnedNotes.length > 0 && unpinnedNotes.length > 0 && <div className="mx-4 my-2 border-t border-slate-200 dark:border-slate-800"></div>}
+                {unpinnedNotes.length > 0 && (
+                    <div className="py-2">
+                        {pinnedNotes.length > 0 && <h2 className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.notes')}</h2>}
+                        {renderNoteList(unpinnedNotes)}
+                    </div>
+                )}
+            </>
+            ) : (
+            <div className="text-center p-8 text-slate-500">
+                <NotebookPen className="mx-auto h-12 w-12 text-slate-400" />
+                <h3 className="mt-2 text-lg font-semibold">{t('noteList.noNotesFound')}</h3>
+                <p className="mt-1 text-sm">{searchQuery ? t('noteList.tryDifferentSearch') : t('noteList.clickNewNote')}</p>
+            </div>
+            )}
+        </div>
+    );
+}
+
+const NoteList: React.FC<NoteListProps> = (props) => {
+  const logic = useNoteList(props);
+  return (
+    <NoteListContext.Provider value={logic}>
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
+            <NoteListHeader />
+            <NoteListContent />
+            <BatchActionBar />
+        </div>
+    </NoteListContext.Provider>
   );
 };
 

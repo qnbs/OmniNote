@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
-import { Note } from '../types';
+import { Note } from '../core/types/note';
 import AiAgentPanel from './AiAgentPanel';
 import KnowledgeGraph from './KnowledgeGraph';
 import VersionHistory from './VersionHistory';
 import { BrainCircuit, Share2, History, X } from './icons';
 import { useTheme } from './ThemeProvider';
-import { useNotes } from '../contexts/NoteContext';
+import { useAppDispatch, useAppSelector } from '../core/store/hooks';
+import { updateNote } from '../features/notes/noteSlice';
+import { setRightSidebarView } from '../features/ui/uiSlice';
 import { useLocale } from '../contexts/LocaleContext';
-
-type ViewMode = 'ai' | 'graph' | 'history';
 
 interface RightSidebarProps {
   activeNote: Note | null;
@@ -56,13 +56,14 @@ const GraphSettings: React.FC<{
     );
 }
 
+type ViewMode = 'ai' | 'graph' | 'history';
 
 const RightSidebar: React.FC<RightSidebarProps> = ({ activeNote, notes, onSelectNote, onClose }) => {
-  const [view, setView] = useState<ViewMode>('ai');
+  const dispatch = useAppDispatch();
+  const view = useAppSelector(state => state.ui.activeRightSidebarView);
   const [charge, setCharge] = useState(-400);
   const [linkDistance, setLinkDistance] = useState(120);
   const { theme } = useTheme();
-  const { updateNote } = useNotes();
   const { t } = useLocale();
 
   const graphColors = {
@@ -79,10 +80,8 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ activeNote, notes, onSelect
     { id: 'history', label: t('rightSidebar.tabs.history'), icon: <History className="h-4 w-4" /> },
   ];
 
-
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      {/* Header with Segmented Control */}
       <div className="p-3 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-10">
         <div className="flex items-center justify-between mb-3 md:hidden">
              <span className="text-sm font-bold text-slate-700 dark:text-slate-200">Tools</span>
@@ -94,7 +93,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ activeNote, notes, onSelect
           {TABS.map(tab => (
             <button
                 key={tab.id}
-                onClick={() => setView(tab.id)}
+                onClick={() => dispatch(setRightSidebarView(tab.id))}
                 className={`flex-1 py-1.5 px-2 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all duration-200 ${
                 view === tab.id 
                     ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm scale-[1.02]' 
@@ -135,7 +134,7 @@ const RightSidebar: React.FC<RightSidebarProps> = ({ activeNote, notes, onSelect
           <VersionHistory
             key={activeNote?.id}
             activeNote={activeNote}
-            onRestore={(content) => activeNote && updateNote({ ...activeNote, content })}
+            onRestore={(content) => activeNote && dispatch(updateNote({ ...activeNote, content }))}
           />
         )}
       </div>
