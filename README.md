@@ -129,7 +129,7 @@ OmniNote orchestrates a suite of specialized AI agents. We utilize **System Inst
 
 1.  **Clone the Repository**
     ```bash
-    git clone https://github.com/your-username/omninote.git
+    git clone https://github.com/qnbs/OmniNote.git
     cd omninote
     ```
 
