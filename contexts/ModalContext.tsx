@@ -3,18 +3,17 @@ import React, { createContext, useContext, useState, useCallback, ReactNode } fr
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import SettingsModal from '../components/SettingsModal';
 import HelpCenter from '../components/HelpCenter';
-import CommandPalette from '../components/CommandPalette'; // Import CommandPalette
-import { NoteProvider } from './NoteContext'; // Import NoteProvider
+import CommandPalette from '../components/CommandPalette';
 
 type ModalType = 'deleteConfirm' | 'settings' | 'help' | 'commandPalette';
 
 interface ModalState {
   type: ModalType | null;
-  props: any;
+  props: Record<string, unknown>;
 }
 
 interface ModalContextType {
-  showModal: (type: ModalType, props?: any) => void;
+  showModal: (type: ModalType, props?: Record<string, unknown>) => void;
   hideModal: () => void;
 }
 
@@ -31,7 +30,7 @@ export const ModalProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [modalState, setModalState] = useState<ModalState>({ type: null, props: {} });
   const [isOpen, setIsOpen] = useState(false);
 
-  const showModal = useCallback((type: ModalType, props: any = {}) => {
+  const showModal = useCallback((type: ModalType, props: Record<string, unknown> = {}) => {
     setModalState({ type, props });
     setIsOpen(true);
   }, []);

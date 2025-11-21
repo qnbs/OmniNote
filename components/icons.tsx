@@ -101,6 +101,7 @@ import {
   ChevronDown,
   Check,
   Command,
+  Send,
 } from 'lucide-react';
 
 type IconProps = React.HTMLAttributes<SVGElement>;
@@ -205,6 +206,7 @@ export {
   ChevronDown,
   Check,
   Command,
+  Send,
 };
 
 // Handle the alias for 'Link' to avoid conflicts

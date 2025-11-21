@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
-import { BrainstormSuggestion, PlannerSuggestion, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult } from "../types";
+import { BrainstormSuggestion, PlannerSuggestion, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult, ChatMessage } from "../types";
 
 const getAiClient = () => {
     const API_KEY = process.env.API_KEY;
@@ -12,59 +12,95 @@ const getAiClient = () => {
 
 const getLanguageInstruction = (locale: 'en' | 'de') => {
   if (locale === 'de') {
-    return 'The response must be in German.';
+    return 'Antworte ausschließlich auf Deutsch.';
   }
-  return '';
+  return 'Answer exclusively in English.';
 };
 
 
 // --- Type Guards for API Responses ---
 
-function isAnalysisResult(obj: any): obj is { summary: string; tags: string[] } {
+function isAnalysisResult(obj: unknown): obj is { summary: string; tags: string[] } {
     return (
-        obj &&
-        typeof obj.summary === 'string' &&
-        Array.isArray(obj.tags) &&
-        obj.tags.every((t: any) => typeof t === 'string')
+        typeof obj === 'object' &&
+        obj !== null &&
+        'summary' in obj &&
+        typeof (obj as any).summary === 'string' &&
+        'tags' in obj &&
+        Array.isArray((obj as any).tags) &&
+        (obj as any).tags.every((t: any) => typeof t === 'string')
     );
 }
 
-function isBrainstormSuggestion(obj: any): obj is BrainstormSuggestion {
-    return obj && Array.isArray(obj.ideas) && obj.ideas.every((i: any) => typeof i === 'string');
-}
-
-function isPlannerSuggestion(obj: any): obj is PlannerSuggestion {
-    return obj && Array.isArray(obj.tasks) && obj.tasks.every((t: any) => typeof t === 'string');
-}
-
-function isTranslateSuggestion(obj: any): obj is TranslateSuggestion {
-    return obj && typeof obj.translatedText === 'string';
-}
-
-function isFormatSuggestion(obj: any): obj is FormatSuggestion {
-    return obj && typeof obj.formattedText === 'string';
-}
-
-function isTitledContentWithTagsResult(obj: any): obj is AiRecipeResult {
+function isBrainstormSuggestion(obj: unknown): obj is BrainstormSuggestion {
     return (
-        obj &&
-        typeof obj.title === 'string' &&
-        typeof obj.content === 'string' &&
-        Array.isArray(obj.tags) &&
-        obj.tags.every((t: any) => typeof t === 'string')
+        typeof obj === 'object' &&
+        obj !== null &&
+        'ideas' in obj &&
+        Array.isArray((obj as any).ideas) &&
+        (obj as any).ideas.every((i: any) => typeof i === 'string')
     );
 }
 
-function isMeetingAnalysisResult(obj: any): obj is AiRecipeResult {
-    return obj && typeof obj.title === 'string' && typeof obj.content === 'string';
+function isPlannerSuggestion(obj: unknown): obj is PlannerSuggestion {
+    return (
+        typeof obj === 'object' &&
+        obj !== null &&
+        'tasks' in obj &&
+        Array.isArray((obj as any).tasks) &&
+        (obj as any).tasks.every((t: any) => typeof t === 'string')
+    );
+}
+
+function isTranslateSuggestion(obj: unknown): obj is TranslateSuggestion {
+    return (
+        typeof obj === 'object' &&
+        obj !== null &&
+        'translatedText' in obj &&
+        typeof (obj as any).translatedText === 'string'
+    );
+}
+
+function isFormatSuggestion(obj: unknown): obj is FormatSuggestion {
+    return (
+        typeof obj === 'object' &&
+        obj !== null &&
+        'formattedText' in obj &&
+        typeof (obj as any).formattedText === 'string'
+    );
+}
+
+function isTitledContentWithTagsResult(obj: unknown): obj is AiRecipeResult {
+    return (
+        typeof obj === 'object' &&
+        obj !== null &&
+        'title' in obj &&
+        typeof (obj as any).title === 'string' &&
+        'content' in obj &&
+        typeof (obj as any).content === 'string' &&
+        'tags' in obj &&
+        Array.isArray((obj as any).tags) &&
+        (obj as any).tags.every((t: any) => typeof t === 'string')
+    );
+}
+
+function isMeetingAnalysisResult(obj: unknown): obj is AiRecipeResult {
+    return (
+        typeof obj === 'object' &&
+        obj !== null &&
+        'title' in obj &&
+        typeof (obj as any).title === 'string' &&
+        'content' in obj &&
+        typeof (obj as any).content === 'string'
+    );
 }
 
 // --- Generic Helpers for API Calls ---
 
 async function generateAndParseJSON<T>(
   prompt: string,
-  config: any, // The config object for generateContent, excluding model and contents
-  typeGuard: (obj: any) => obj is T
+  config: Record<string, unknown>,
+  typeGuard: (obj: unknown) => obj is T
 ): Promise<T> {
   const ai = getAiClient();
   const result: GenerateContentResponse = await ai.models.generateContent({
@@ -78,16 +114,20 @@ async function generateAndParseJSON<T>(
     if (!textResponse) {
         throw new Error("Received an empty response from the AI.");
     }
-    const parsed = JSON.parse(textResponse);
+    // Clean up potential markdown code blocks if the model includes them despite schema
+    const cleanJson = textResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    const parsed = JSON.parse(cleanJson);
+    
     if (typeGuard(parsed)) {
       return parsed;
     }
     throw new Error("Parsed JSON does not match the expected format.");
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("Failed to parse JSON from Gemini:", result.text, e);
-    const errorMessage = e.message.includes("format") 
-        ? "Received invalid data structure from AI." 
-        : "Received invalid JSON from AI.";
+    let errorMessage = "Received invalid JSON from AI.";
+    if (e instanceof Error && e.message.includes("format")) {
+        errorMessage = "Received invalid data structure from AI.";
+    }
     throw new Error(errorMessage);
   }
 }
@@ -99,7 +139,9 @@ async function generateStream(prompt: string, onChunk: (chunk: string) => void) 
         contents: prompt,
     });
     for await (const chunk of result) {
-        onChunk(chunk.text);
+        if (chunk.text) {
+            onChunk(chunk.text);
+        }
     }
 }
 
@@ -111,7 +153,7 @@ const analysisSchema = {
   properties: {
     summary: {
       type: Type.STRING,
-      description: "A summary of the note's content.",
+      description: "A summary of the note's content in Markdown format.",
     },
     tags: {
       type: Type.ARRAY,
@@ -217,9 +259,14 @@ export const getTaskPlanStream = async (content: string, options: { detail: 'sim
 export const getResearchLinks = async (content: string, locale: 'en' | 'de'): Promise<ResearchSuggestion> => {
   const ai = getAiClient();
   const langInstruction = getLanguageInstruction(locale);
+  
+  // Research agent uses Google Search tool, so we cannot enforce JSON schema easily.
+  // We prompt for a structured text response.
+  const prompt = `Based on the following note, provide a concise answer and list relevant online resources. ${langInstruction} Note: "${content.substring(0, 500)}"`;
+
   const result: GenerateContentResponse = await ai.models.generateContent({
     model: "gemini-2.5-flash",
-    contents: `Based on the following note, provide a concise answer and list relevant online resources. ${langInstruction} Note: "${content.substring(0, 500)}"`,
+    contents: prompt,
     config: {
       tools: [{ googleSearch: {} }],
     },
@@ -237,8 +284,8 @@ export const getResearchLinks = async (content: string, locale: 'en' | 'de'): Pr
 
   if (!answer && sources.length === 0) {
       const message = locale === 'de'
-        ? "Keine Online-Ergebnisse zu diesem Thema gefunden. Versuchen Sie, Ihren Notizinhalt zu verfeinern, um bessere Rechercheergebnisse zu erzielen."
-        : "No online results found for this topic. Try refining your note content for better research results.";
+        ? "Keine Online-Ergebnisse zu diesem Thema gefunden. Versuchen Sie, Ihren Notizinhalt zu verfeinern."
+        : "No online results found for this topic. Try refining your note content.";
 
       return {
           answer: message,
@@ -291,20 +338,31 @@ export const generateImageFromNote = async (
     const stylePrompt = style === 'default' ? '' : `, in the style of ${style}`;
     const prompt = `Generate an image based on the following note${stylePrompt}. Title: "${noteTitle}". Content: "${noteContent.substring(0, 250)}". Focus on creating a visually compelling representation of the key concepts.`;
     
-    const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-002',
-        prompt: prompt,
+    const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: { parts: [{ text: prompt }] },
         config: {
-          numberOfImages: 1,
-          outputMimeType: 'image/jpeg',
-          aspectRatio: aspectRatio,
+            imageConfig: {
+                aspectRatio: aspectRatio
+            }
         },
     });
     
-    const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+    let base64ImageBytes: string | undefined;
+
+    if (response.candidates?.[0]?.content?.parts) {
+        for (const part of response.candidates[0].content.parts) {
+            if (part.inlineData) {
+                base64ImageBytes = part.inlineData.data;
+                break;
+            }
+        }
+    }
+
     if (!base64ImageBytes) {
         throw new Error("Image generation failed to return an image.");
     }
+    
     return { imageBytes: base64ImageBytes };
 };
 
@@ -370,4 +428,32 @@ export const runSocialPostRecipe = async (noteContent: string, locale: 'en' | 'd
         { responseMimeType: "application/json", responseSchema: socialPostSchema },
         isTitledContentWithTagsResult
     );
+};
+
+export const streamChatWithNote = async (
+    noteContent: string,
+    history: ChatMessage[],
+    message: string,
+    onChunk: (text: string) => void
+) => {
+    const ai = getAiClient();
+    const formattedHistory = history.map(msg => ({
+        role: msg.role,
+        parts: [{ text: msg.text }]
+    }));
+
+    const chat = ai.chats.create({
+        model: "gemini-2.5-flash",
+        config: {
+            systemInstruction: `You are a helpful assistant. Answer the user's questions based on the context of the following note:\n\n${noteContent}\n\nIf the answer is not in the note, say so, but you can use your general knowledge if explicitly asked. Keep answers concise.`
+        },
+        history: formattedHistory
+    });
+
+    const result = await chat.sendMessageStream({ message });
+    for await (const chunk of result) {
+        if(chunk.text) {
+            onChunk(chunk.text);
+        }
+    }
 };

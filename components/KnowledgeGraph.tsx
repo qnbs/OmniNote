@@ -244,7 +244,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
     const simulation = simulationRef.current;
     
     const linkData = g.selectAll<SVGLineElement, GraphLink>('.link')
-      .data(links, d => `${(d.source as any).id || d.source}_${(d.target as any).id || d.target}`);
+      .data(links, d => `${(d.source as GraphNode).id || (d.source as string)}_${(d.target as GraphNode).id || (d.target as string)}`);
     
     linkData.exit().remove();
     linkData.enter().append('line')

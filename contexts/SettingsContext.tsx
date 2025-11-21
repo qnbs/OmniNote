@@ -37,13 +37,21 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
       const storedSettings = localStorage.getItem('omninote_settings');
       if (storedSettings) {
           const parsed = JSON.parse(storedSettings);
+          
+          // Validate targetLanguage to ensure it's only English or German
+          let safeTargetLanguage = parsed.aiAgentDefaults?.targetLanguage;
+          if (safeTargetLanguage !== 'English' && safeTargetLanguage !== 'German') {
+              safeTargetLanguage = defaultSettings.aiAgentDefaults.targetLanguage;
+          }
+
           // Deep merge to ensure new default settings are applied if not present in storage
           return {
               ...defaultSettings,
               ...parsed,
               aiAgentDefaults: {
                   ...defaultSettings.aiAgentDefaults,
-                  ...(parsed.aiAgentDefaults || {})
+                  ...(parsed.aiAgentDefaults || {}),
+                  targetLanguage: safeTargetLanguage
               }
           };
       }

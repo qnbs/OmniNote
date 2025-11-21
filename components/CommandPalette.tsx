@@ -38,6 +38,7 @@ interface Command {
     icon: React.ReactNode;
     action: () => void;
     note?: Note;
+    match?: number;
 }
 
 interface CommandPaletteProps {
@@ -118,8 +119,8 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 note,
                 match: (note.title.toLowerCase().includes(lowerCaseQuery) ? 10 : 0) + (note.content.toLowerCase().includes(lowerCaseQuery) ? 5 : 0)
             }))
-            .filter(n => n.match > 0)
-            .sort((a,b) => b.match - a.match);
+            .filter(n => (n.match || 0) > 0)
+            .sort((a,b) => (b.match || 0) - (a.match || 0));
 
         if (!lowerCaseQuery) {
             // No query: show default actions, AI actions, and all notes sorted by update date
@@ -182,16 +183,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
     let commandCounter = -1;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/50" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-start justify-center sm:pt-24 bg-black/50 backdrop-blur-sm" onClick={onClose}>
             <div
                 onClick={e => e.stopPropagation()}
-                className={`bg-slate-100 dark:bg-slate-900 rounded-lg shadow-2xl w-full max-w-xl mx-4 transition-all duration-200 ease-out flex flex-col ${isEntering ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                className={`bg-slate-100 dark:bg-slate-900 w-full h-full sm:h-auto sm:rounded-lg shadow-2xl sm:max-w-xl sm:mx-4 transition-all duration-200 ease-out flex flex-col ${isEntering ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
                 role="dialog"
                 aria-modal="true"
                 aria-label={t('commandPalette.title')}
             >
-                <div className="relative flex-shrink-0">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <div className="relative flex-shrink-0 p-2 sm:p-0">
+                    <div className="absolute inset-y-0 left-0 pl-4 sm:pl-6 flex items-center pointer-events-none">
                         <Icons.Search className="h-5 w-5 text-slate-400" />
                     </div>
                     <input
@@ -201,14 +202,20 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                         onChange={e => setQuery(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder={t('commandPalette.placeholder')}
-                        className="w-full pl-11 pr-4 py-3 text-base bg-transparent border-b border-slate-200 dark:border-slate-800 focus:outline-none"
+                        className="w-full pl-10 sm:pl-12 pr-4 py-3 sm:py-4 text-base bg-transparent border-b border-slate-200 dark:border-slate-800 focus:outline-none text-slate-900 dark:text-white placeholder-slate-400"
                         aria-controls="command-list"
                         aria-autocomplete="list"
                     />
+                     <button 
+                        onClick={onClose} 
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-slate-400 sm:hidden"
+                    >
+                        <Icons.X className="h-5 w-5" />
+                    </button>
                 </div>
-                <div ref={listRef} id="command-list" role="listbox" className="max-h-[50vh] overflow-y-auto p-2 flex-grow">
+                <div ref={listRef} id="command-list" role="listbox" className="max-h-full sm:max-h-[50vh] overflow-y-auto p-2 flex-grow">
                     {filteredCommands.length > 0 ? (
-                       Object.entries(groupedCommands).map(([category, cmds]) => (
+                       Object.entries(groupedCommands).map(([category, cmds]: [string, Command[]]) => (
                            <div key={category} className="mb-2">
                                <h3 className="px-2 text-xs font-semibold text-slate-500 uppercase tracking-wider" id={`category-${category}`}>{category}</h3>
                                <ul role="group" aria-labelledby={`category-${category}`}>
@@ -221,15 +228,15 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                         id={`cmd-item-${currentIndex}`}
                                         onClick={cmd.action}
                                         onMouseEnter={() => setSelectedIndex(currentIndex)}
-                                        className={`flex items-center gap-3 p-2 my-1 rounded-md cursor-pointer text-sm ${selectedIndex === currentIndex ? 'bg-primary-500 text-white' : 'text-slate-700 dark:text-slate-200'}`}
+                                        className={`flex items-center gap-3 p-3 sm:p-2 my-1 rounded-md cursor-pointer text-sm ${selectedIndex === currentIndex ? 'bg-primary-500 text-white' : 'text-slate-700 dark:text-slate-200'}`}
                                         role="option"
                                         aria-selected={selectedIndex === currentIndex}
                                     >
                                         <span className={selectedIndex === currentIndex ? 'text-white' : 'text-slate-500'}>{cmd.icon}</span>
                                         <div className="flex-grow overflow-hidden">
-                                            <span className="truncate">{cmd.title}</span>
+                                            <span className="truncate font-medium">{cmd.title}</span>
                                             {cmd.type === 'note' && cmd.note && (
-                                                <p className={`text-xs truncate ${selectedIndex === currentIndex ? 'text-primary-200' : 'text-slate-400'}`}>
+                                                <p className={`text-xs truncate mt-0.5 ${selectedIndex === currentIndex ? 'text-primary-100' : 'text-slate-400'}`}>
                                                     {cmd.note.content.split('\n').find(line => line.trim().length > 0) || t('noteList.noContent')}
                                                 </p>
                                             )}
@@ -241,10 +248,10 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                            </div>
                        ))
                     ) : (
-                        <div className="p-4 text-center text-slate-500">{t('commandPalette.noResults')}</div>
+                        <div className="p-8 text-center text-slate-500">{t('commandPalette.noResults')}</div>
                     )}
                 </div>
-                 <div className="p-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 flex justify-between flex-shrink-0">
+                 <div className="p-2 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-500 justify-between flex-shrink-0 hidden sm:flex">
                      <span>{t('commandPalette.navTip')}</span>
                      <span>{t('commandPalette.closeTip')}</span>
                 </div>

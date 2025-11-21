@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import { Bold, Italic, Link, List, Quote, Table } from './icons';
 
@@ -13,7 +12,7 @@ const ToolbarButton: React.FC<{ onClick: () => void; children: React.ReactNode; 
     onClick={onClick}
     aria-label={label}
     title={label}
-    className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors"
+    className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 transition-colors flex-shrink-0"
   >
     {children}
   </button>
@@ -33,7 +32,7 @@ const NoteEditorToolbar: React.FC<NoteEditorToolbarProps> = ({ onApplyMarkdown }
 
 
   return (
-    <div className="flex items-center gap-1 p-1 border-b border-slate-200 dark:border-slate-800">
+    <div className="flex items-center gap-1 p-1 border-b border-slate-200 dark:border-slate-800 overflow-x-auto no-scrollbar">
       <ToolbarButton onClick={handleBold} label="Bold"><Bold className="h-4 w-4" /></ToolbarButton>
       <ToolbarButton onClick={handleItalic} label="Italic"><Italic className="h-4 w-4" /></ToolbarButton>
       <ToolbarButton onClick={handleLink} label="Insert Link"><Link className="h-4 w-4" /></ToolbarButton>

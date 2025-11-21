@@ -1,9 +1,7 @@
 
-
-
 import React, { useState, useEffect, useRef, useCallback, useMemo, useImperativeHandle, forwardRef } from 'react';
 import { Note } from '../types';
-import { Eye, Pencil, Save, SmilePlus, ChevronDown, FileDown } from './icons';
+import { Eye, Pencil, Save, SmilePlus, ChevronDown, FileDown, ChevronLeft } from './icons';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
 import { useNotes } from '../contexts/NoteContext';
@@ -14,7 +12,10 @@ import IconPicker from './IconPicker';
 import { useLocale } from '../contexts/LocaleContext';
 import { WIKI_LINK_REGEX, findNoteByTitle } from '../utils/noteUtils';
 
-declare const hljs: any;
+interface HighlightJs {
+    highlightElement: (block: HTMLElement) => void;
+}
+declare const hljs: HighlightJs;
 
 export interface NoteEditorHandle {
   focusTitle: () => void;
@@ -120,14 +121,12 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
 
   useEffect(() => {
     if (viewMode === 'preview' && previewRef.current) {
-        // Syntax highlighting
         if(typeof hljs !== 'undefined') {
             previewRef.current.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
+                hljs.highlightElement(block as HTMLElement);
             });
         }
 
-        // Wiki-link click handler
         const handlePreviewClick = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             const link = target.closest('a[data-note-id]');
@@ -152,13 +151,12 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
   const parsedContent = useMemo(() => {
       const rawHtml = marked.parse(debouncedContent) as string;
       const sanitizedHtml = DOMPurify.sanitize(rawHtml);
-      // After sanitization, replace [[wiki-links]]
       return sanitizedHtml.replace(WIKI_LINK_REGEX, (match, linkTitle) => {
         const linkedNote = findNoteByTitle(allNotes, linkTitle);
         if (linkedNote) {
-          return `<a href="#" data-note-id="${linkedNote.id}" class="text-primary-600 dark:text-primary-400 bg-primary-100/50 dark:bg-primary-900/50 px-1 py-0.5 rounded-md hover:underline">${linkTitle}</a>`;
+          return `<a href="#" data-note-id="${linkedNote.id}" class="text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30 px-1 py-0.5 rounded hover:underline font-medium transition-colors">${linkTitle}</a>`;
         } else {
-          return `<span class="text-red-500 bg-red-100/50 dark:bg-red-900/50 px-1 py-0.5 rounded-md" title="${t('editor.brokenLinkTitle')}">${linkTitle}</span>`;
+          return `<span class="text-red-500 bg-red-50 dark:bg-red-900/20 px-1 py-0.5 rounded border border-red-100 dark:border-red-900/30 cursor-help" title="${t('editor.brokenLinkTitle')}">${linkTitle}</span>`;
         }
       });
   }, [debouncedContent, allNotes, t]);
@@ -263,106 +261,129 @@ const NoteEditor = forwardRef<NoteEditorHandle, NoteEditorProps>(({ note, allNot
 
   return (
     <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-950">
-      <div className="flex-1 flex flex-col p-2 sm:p-4 md:p-6 overflow-y-auto">
-        <div className='flex justify-between items-center mb-4 gap-4'>
-            <div className="relative">
-                 <button 
-                    onClick={() => setIconPickerOpen(true)}
-                    className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 absolute -left-12 top-1/2 -translate-y-1/2"
-                    aria-label={t('editor.chooseIcon')}
-                  >
-                     <SmilePlus className="h-6 w-6 text-slate-500" />
-                 </button>
-                 {isIconPickerOpen && <IconPicker onSelect={handleIconSelect} onClose={() => setIconPickerOpen(false)} />}
-            </div>
-          <input
-            ref={titleRef}
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder={t('editor.titlePlaceholder')}
-            className={`note-editor-title w-full text-3xl font-bold bg-transparent focus:outline-none border-b border-transparent focus:border-slate-300 dark:focus:border-slate-700 transition-colors py-2 text-slate-900 dark:text-white ${fontClasses[settings.font]}`}
-          />
-          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg ml-auto">
-            <button
-              onClick={() => setViewMode('edit')}
-              aria-pressed={viewMode === 'edit'}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors ${viewMode === 'edit' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'}`}
-            >
-              <Pencil className="h-4 w-4" /> {t('editor.edit')}
-            </button>
-            <button
-              onClick={() => setViewMode('preview')}
-              aria-pressed={viewMode === 'preview'}
-              className={`px-3 py-1.5 text-sm font-medium rounded-md flex items-center gap-1.5 transition-colors ${viewMode === 'preview' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white' : 'text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700/50'}`}
-            >
-              <Eye className="h-4 w-4" /> {t('editor.preview')}
-            </button>
-          </div>
-           <div className="relative" ref={menuRef}>
-                <button onClick={() => setMenuOpen(!isMenuOpen)} className="p-2 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700">
-                    <ChevronDown className={`h-5 w-5 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-10 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800">
+          <div className="flex flex-col p-2 sm:px-6 sm:pt-4 sm:pb-2">
+            <div className='flex justify-between items-start gap-2 sm:gap-4'>
+                <button 
+                    onClick={() => onSelectNote('')} 
+                    className="md:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 mr-1 flex-shrink-0"
+                    aria-label={t('back')}
+                >
+                    <ChevronLeft className="h-6 w-6" />
                 </button>
-                {isMenuOpen && (
-                    <div className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-md shadow-lg border dark:border-slate-700 z-10">
-                        <button onClick={handleSaveAsTemplate} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2">
-                            <Save className="h-4 w-4" /> {t('editor.saveAsTemplate')}
+
+                <div className="relative flex-1 flex items-center group min-w-0">
+                    <button 
+                        onClick={() => setIconPickerOpen(true)}
+                        className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 mr-2 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors flex-shrink-0"
+                        aria-label={t('editor.chooseIcon')}
+                    >
+                        <SmilePlus className="h-6 w-6" />
+                    </button>
+                    {isIconPickerOpen && <IconPicker onSelect={handleIconSelect} onClose={() => setIconPickerOpen(false)} />}
+                    
+                    <input
+                        ref={titleRef}
+                        type="text"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder={t('editor.titlePlaceholder')}
+                        className={`w-full text-lg sm:text-2xl md:text-3xl font-bold bg-transparent focus:outline-none placeholder-slate-300 dark:placeholder-slate-700 text-slate-900 dark:text-white truncate ${fontClasses[settings.font]}`}
+                    />
+                </div>
+            
+                <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+                    <div className="flex items-center bg-slate-100 dark:bg-slate-900 p-1 rounded-lg border border-slate-200 dark:border-slate-800">
+                        <button
+                        onClick={() => setViewMode('edit')}
+                        aria-pressed={viewMode === 'edit'}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        title={t('editor.edit')}
+                        >
+                        <Pencil className="h-4 w-4" />
                         </button>
-                        <button onClick={handleExportMarkdown} className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2">
-                            <FileDown className="h-4 w-4" /> {t('editor.exportMarkdown')}
+                        <button
+                        onClick={() => setViewMode('preview')}
+                        aria-pressed={viewMode === 'preview'}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'}`}
+                        title={t('editor.preview')}
+                        >
+                        <Eye className="h-4 w-4" />
                         </button>
                     </div>
-                )}
+                    
+                    <div className="relative" ref={menuRef}>
+                        <button onClick={() => setMenuOpen(!isMenuOpen)} className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-900 text-slate-500 transition-colors">
+                            <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${isMenuOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isMenuOpen && (
+                            <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-800 z-20 overflow-hidden animate-in fade-in zoom-in-95 duration-100 origin-top-right">
+                                <button onClick={handleSaveAsTemplate} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800">
+                                    <Save className="h-4 w-4 text-slate-400" /> {t('editor.saveAsTemplate')}
+                                </button>
+                                <button onClick={handleExportMarkdown} className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-3">
+                                    <FileDown className="h-4 w-4 text-slate-400" /> {t('editor.exportMarkdown')}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
-        </div>
-        <div className="flex-1 flex flex-col overflow-hidden">
+            
+            {/* Inline Toolbar for Edit Mode */}
+            {viewMode === 'edit' && (
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/50">
+                    <NoteEditorToolbar onApplyMarkdown={applyMarkdown} />
+                </div>
+            )}
+          </div>
+      </div>
+
+      <div className="flex-1 flex flex-col overflow-hidden relative">
           {viewMode === 'edit' ? (
-            <div className="flex-1 flex flex-col">
-              <NoteEditorToolbar
-                onApplyMarkdown={applyMarkdown}
-              />
-              <textarea
+            <textarea
                 ref={contentRef}
                 value={content}
                 onScroll={() => syncScroll('editor')}
                 onChange={(e) => setContent(e.target.value)}
                 placeholder={t('editor.contentPlaceholder')}
                 className={`
-                    w-full h-full bg-transparent focus:outline-none resize-none leading-relaxed mt-2 overflow-y-auto
+                    flex-1 w-full h-full bg-transparent focus:outline-none resize-none leading-relaxed p-4 sm:px-8 sm:py-6 overflow-y-auto
                     ${fontClasses[settings.font]}
                     ${fontSizeClasses[settings.editorFontSize]}
                     ${settings.focusMode ? 'focus-mode' : ''}
                 `}
                 aria-label={t('editor.contentAriaLabel')}
-              />
-              <style>{`
-                .focus-mode:focus {
-                    color: inherit;
-                }
-                .focus-mode {
-                    color: gray;
-                }
-              `}</style>
-            </div>
+            />
           ) : (
             <div
               ref={previewRef}
               onScroll={() => syncScroll('preview')}
-              className={`prose prose-slate dark:prose-invert max-w-none p-1 overflow-y-auto h-full ${fontClasses[settings.font]} ${fontSizeClasses[settings.editorFontSize]}`}
+              className={`prose prose-slate dark:prose-invert max-w-3xl mx-auto w-full p-4 sm:px-8 sm:py-6 overflow-y-auto h-full ${fontClasses[settings.font]} ${fontSizeClasses[settings.editorFontSize]}`}
               dangerouslySetInnerHTML={{ __html: parsedContent }}
             />
           )}
-        </div>
+          
+          <style>{`
+                .focus-mode:focus {
+                    color: inherit;
+                }
+                .focus-mode {
+                    color: #94a3b8; /* slate-400 */
+                    transition: color 0.3s ease;
+                }
+          `}</style>
+      </div>
         {settings.showWordCount && (
-            <div className="mt-4 flex justify-end items-center text-xs text-slate-400 dark:text-slate-500 flex-shrink-0">
+            <div className="py-2 px-6 border-t border-slate-100 dark:border-slate-900 text-[10px] uppercase tracking-wider font-medium text-slate-400 dark:text-slate-600 flex justify-end gap-4 bg-white dark:bg-slate-950">
                 <span>{t('editor.words')}: {wordCount}</span>
-                <span className="mx-2">|</span>
+                <span className="text-slate-200 dark:text-slate-800">|</span>
                 <span>{t('editor.characters')}: {charCount}</span>
-                <span className="mx-2">|</span>
+                <span className="text-slate-200 dark:text-slate-800">|</span>
                 <span>{t('editor.lastUpdated')}: {formattedDate}</span>
             </div>
         )}
-      </div>
     </div>
   );
 });

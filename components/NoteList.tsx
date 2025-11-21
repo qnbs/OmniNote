@@ -1,5 +1,5 @@
 
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import { Note } from '../types';
 import { Plus, NotebookPen, Pin, ChevronLeft, LayoutTemplate, CheckSquare as CheckSquareIcon, Trash2, Tag, PinOff } from './icons';
 import SearchNotes from './SearchNotes';
@@ -47,12 +47,12 @@ const NewNoteButton: React.FC<{onAddNote: (templateContent?: string, templateTit
             <div className="flex rounded-md shadow-sm">
                  <button
                     onClick={() => onAddNote()}
-                    className="flex-grow flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-l-md hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 transition-colors"
+                    className="flex-grow flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-l-md hover:bg-primary-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75 transition-colors"
                   >
                     <Plus className="h-4 w-4" />
                     {t('noteList.newNote')}
                   </button>
-                  <button onClick={() => setIsOpen(!isOpen)} className="px-2 bg-primary-700 text-white rounded-r-md hover:bg-primary-800">
+                  <button onClick={() => setIsOpen(!isOpen)} className="px-3 bg-primary-700 text-white rounded-r-md hover:bg-primary-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75" aria-label="More options">
                       <ChevronLeft className={`h-4 w-4 transition-transform ${isOpen ? '-rotate-90' : 'rotate-0'}`} />
                   </button>
             </div>
@@ -63,12 +63,12 @@ const NewNoteButton: React.FC<{onAddNote: (templateContent?: string, templateTit
                         <button
                             key={template.id}
                             onClick={() => handleTemplateClick(template)}
-                            className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+                            className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 border-b border-slate-100 dark:border-slate-700 last:border-0"
                         >
                            <LayoutTemplate className="h-4 w-4" /> <span>{template.title}</span>
                         </button>
                     ))}
-                    {templates.length === 0 && <div className="p-2 text-sm text-slate-500">{t('noteList.noTemplates')}</div>}
+                    {templates.length === 0 && <div className="p-3 text-sm text-slate-500">{t('noteList.noTemplates')}</div>}
                 </div>
             )}
         </div>
@@ -97,12 +97,12 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
   const pinnedNotes = useMemo(() => sortedNotes.filter(n => n.pinned), [sortedNotes]);
   const unpinnedNotes = useMemo(() => sortedNotes.filter(n => !n.pinned), [sortedNotes]);
   
-  const toggleSelectMode = () => {
-    setIsSelectMode(!isSelectMode);
+  const toggleSelectMode = useCallback(() => {
+    setIsSelectMode(prev => !prev);
     setSelectedIds(new Set());
-  }
+  }, []);
 
-  const handleSelectNoteItem = (id: string) => {
+  const handleSelectNoteItem = useCallback((id: string) => {
       if (isSelectMode) {
           setSelectedIds(prev => {
               const newSet = new Set(prev);
@@ -116,21 +116,21 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
       } else {
           onSelectNote(id);
       }
-  }
+  }, [isSelectMode, onSelectNote]);
 
-  const handleBatchDelete = () => {
+  const handleBatchDelete = useCallback(() => {
       batchDelete(Array.from(selectedIds));
       addToast(t('toast.batchDeleteSuccess', { count: selectedIds.size }), 'success');
       toggleSelectMode();
-  }
+  }, [batchDelete, selectedIds, addToast, t, toggleSelectMode]);
   
-  const handleBatchPin = (pin: boolean) => {
+  const handleBatchPin = useCallback((pin: boolean) => {
       batchTogglePin(Array.from(selectedIds), pin);
       addToast(pin ? t('toast.batchPinSuccess', { count: selectedIds.size }) : t('toast.batchUnpinSuccess', { count: selectedIds.size }), 'success');
       toggleSelectMode();
-  }
+  }, [batchTogglePin, selectedIds, addToast, t, toggleSelectMode]);
 
-  const handleBatchAddTag = () => {
+  const handleBatchAddTag = useCallback(() => {
     const tag = tagInputRef.current?.value;
     if (tag && tag.trim() !== '') {
         batchAddTag(Array.from(selectedIds), tag.trim());
@@ -139,7 +139,7 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
     } else {
         addToast(t('toast.emptyTagError'), 'error');
     }
-  }
+  }, [batchAddTag, selectedIds, addToast, t, toggleSelectMode]);
 
 
   const renderNoteList = (notesToRender: Note[]) => {
@@ -160,10 +160,10 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900">
-      <div className="p-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800">
          <NewNoteButton onAddNote={onAddNote} />
       </div>
-      <div className="p-2 border-b border-slate-200 dark:border-slate-800 space-y-2">
+      <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-3">
         <SearchNotes query={searchQuery} onQueryChange={setSearchQuery} />
         <div className="flex items-center justify-between">
             <div>
@@ -172,31 +172,31 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
                     id="sort-notes" 
                     value={sortKey} 
                     onChange={e => setSortKey(e.target.value as SortKey)}
-                    className="text-xs bg-transparent dark:bg-slate-900 border-none focus:ring-0 text-slate-500"
+                    className="text-xs bg-transparent dark:bg-slate-900 border-none focus:ring-0 text-slate-500 font-medium py-2"
                 >
                     <option value="updatedAt">{t('noteList.sort.updated')}</option>
                     <option value="createdAt">{t('noteList.sort.created')}</option>
                     <option value="title">{t('noteList.sort.title')}</option>
                 </select>
             </div>
-            <button onClick={toggleSelectMode} className="text-xs font-semibold text-primary-600 dark:text-primary-400 px-2 py-1 rounded-md hover:bg-primary-100/50 dark:hover:bg-primary-900/50">
+            <button onClick={toggleSelectMode} className="text-xs font-semibold text-primary-600 dark:text-primary-400 px-3 py-1.5 rounded-md hover:bg-primary-100/50 dark:hover:bg-primary-900/50 transition-colors">
                 {isSelectMode ? t('cancel') : t('noteList.select')}
             </button>
         </div>
       </div>
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-20 md:pb-0">
         {notes.length > 0 ? (
           <>
             {pinnedNotes.length > 0 && (
-                <div>
-                    <h2 className="px-4 pt-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('noteList.pinned')}</h2>
+                <div className="py-2">
+                    <h2 className="px-4 pt-2 pb-1 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.pinned')}</h2>
                     {renderNoteList(pinnedNotes)}
                 </div>
             )}
              {pinnedNotes.length > 0 && unpinnedNotes.length > 0 && <div className="mx-4 my-2 border-t border-slate-200 dark:border-slate-800"></div>}
             {unpinnedNotes.length > 0 && (
-                <div>
-                     {pinnedNotes.length > 0 && <h2 className="px-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">{t('noteList.notes')}</h2>}
+                <div className="py-2">
+                     {pinnedNotes.length > 0 && <h2 className="px-4 text-xs font-bold text-slate-400 uppercase tracking-wider">{t('noteList.notes')}</h2>}
                     {renderNoteList(unpinnedNotes)}
                 </div>
             )}
@@ -211,17 +211,17 @@ const NoteList: React.FC<NoteListProps> = ({ notes, activeNoteId, onSelectNote, 
       </div>
       
        {isSelectMode && selectedIds.size > 0 && (
-        <div className="p-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-lg">
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 shadow-lg absolute bottom-0 left-0 right-0 z-20 pb-safe">
              <div className="text-sm font-semibold mb-2">{t('noteList.batch.selected', { count: selectedIds.size })}</div>
-             <div className="space-y-2">
+             <div className="space-y-3">
                  <div className="flex items-center gap-2">
-                    <input ref={tagInputRef} type="text" placeholder={t('noteList.batch.addTagPlaceholder')} className="flex-grow w-full text-xs bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-2 py-1"/>
-                    <button onClick={handleBatchAddTag} className="p-1 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200"><Tag className="h-4 w-4"/></button>
+                    <input ref={tagInputRef} type="text" placeholder={t('noteList.batch.addTagPlaceholder')} className="flex-grow w-full text-sm bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-3 py-2"/>
+                    <button onClick={handleBatchAddTag} className="p-2 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-200"><Tag className="h-5 w-5"/></button>
                  </div>
-                 <div className="grid grid-cols-3 gap-2">
-                    <button onClick={() => handleBatchPin(true)} className="flex items-center justify-center gap-1 text-xs px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700"><Pin className="h-3 w-3"/>{t('noteList.batch.pin')}</button>
-                    <button onClick={() => handleBatchPin(false)} className="flex items-center justify-center gap-1 text-xs px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700"><PinOff className="h-3 w-3"/>{t('noteList.batch.unpin')}</button>
-                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1 text-xs px-2 py-1 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-900"><Trash2 className="h-3 w-3"/>{t('delete')}</button>
+                 <div className="grid grid-cols-3 gap-3">
+                    <button onClick={() => handleBatchPin(true)} className="flex items-center justify-center gap-1 text-xs font-medium px-3 py-2 bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700"><Pin className="h-4 w-4"/>{t('noteList.batch.pin')}</button>
+                    <button onClick={() => handleBatchPin(false)} className="flex items-center justify-center gap-1 text-xs font-medium px-3 py-2 bg-slate-200 dark:bg-slate-800 rounded-md hover:bg-slate-300 dark:hover:bg-slate-700"><PinOff className="h-4 w-4"/>{t('noteList.batch.unpin')}</button>
+                    <button onClick={handleBatchDelete} className="flex items-center justify-center gap-1 text-xs font-medium px-3 py-2 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-md hover:bg-red-200 dark:hover:bg-red-900"><Trash2 className="h-4 w-4"/>{t('delete')}</button>
                  </div>
              </div>
         </div>

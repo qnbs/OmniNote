@@ -1,7 +1,5 @@
 
-
-
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Task } from '../types';
 import { useNotes } from '../contexts/NoteContext';
 import { CheckSquare, ChevronLeft, Notebook } from './icons';
@@ -10,6 +8,67 @@ import { useLocale } from '../contexts/LocaleContext';
 interface TaskViewProps {
   onSelectNote: (id: string) => void;
 }
+
+interface TaskItemProps {
+    task: Task;
+    onToggle: (task: Task) => void;
+    onSelect: (noteId: string) => void;
+    locale: string;
+}
+
+const TaskItem: React.FC<TaskItemProps> = React.memo(({ task, onToggle, onSelect, locale }) => {
+    const formattedDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }) : null;
+
+    const handleToggle = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        // We don't need the event, just trigger the update
+        onToggle(task);
+    }, [onToggle, task]);
+
+    const handleSelect = useCallback(() => {
+        onSelect(task.noteId);
+    }, [onSelect, task.noteId]);
+
+    const stopPropagation = useCallback((e: React.MouseEvent) => {
+        e.stopPropagation();
+    }, []);
+
+    return (
+      <li className="group flex items-start p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
+        <div className="flex-shrink-0 pt-0.5">
+            <input
+                type="checkbox"
+                checked={task.done}
+                onChange={handleToggle}
+                onClick={stopPropagation} // Prevent navigation when clicking checkbox
+                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 bg-transparent cursor-pointer"
+                aria-label={task.text}
+            />
+        </div>
+        <div 
+            className="ml-3 flex-grow cursor-pointer"
+            onClick={handleSelect}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleSelect(); }}
+        >
+            <div className="flex justify-between items-center">
+                <span className={`text-sm ${task.done ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
+                    {task.text}
+                </span>
+                {formattedDate && (
+                     <span className={`ml-2 text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-full whitespace-nowrap ${task.done ? 'opacity-60' : ''}`}>
+                        {formattedDate}
+                    </span>
+                )}
+            </div>
+            <div className="text-xs text-slate-400 group-hover:text-primary-500 transition-colors flex items-center gap-1.5 mt-0.5">
+                <Notebook className="h-3 w-3" />
+                <span className="truncate" title={task.noteTitle}>{task.noteTitle}</span>
+            </div>
+        </div>
+      </li>
+    );
+});
 
 const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
   const { tasks: allTasks, updateTaskInNote } = useNotes();
@@ -60,45 +119,6 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
     return groups;
   }, [allTasks, t]);
 
-
-  const renderTaskItem = (task: Task) => {
-    const formattedDate = task.dueDate ? new Date(task.dueDate).toLocaleDateString(locale, { month: 'short', day: 'numeric', timeZone: 'UTC' }) : null;
-
-    return (
-      <li key={task.id} className="group flex items-start p-2 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800/50 transition-colors">
-        <div className="flex-shrink-0 pt-0.5">
-            <input
-                type="checkbox"
-                checked={task.done}
-                onChange={() => updateTaskInNote(task)}
-                onClick={(e) => e.stopPropagation()} // Prevent navigation when clicking checkbox
-                className="h-4 w-4 rounded border-slate-300 dark:border-slate-600 text-primary-600 focus:ring-primary-500 bg-transparent"
-                aria-label={task.text}
-            />
-        </div>
-        <div 
-            className="ml-3 flex-grow cursor-pointer"
-            onClick={() => onSelectNote(task.noteId)}
-        >
-            <div className="flex justify-between items-center">
-                <span className={`text-sm ${task.done ? 'line-through text-slate-500' : 'text-slate-800 dark:text-slate-200'}`}>
-                    {task.text}
-                </span>
-                {formattedDate && (
-                     <span className={`ml-2 text-xs text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-full whitespace-nowrap ${task.done ? 'opacity-60' : ''}`}>
-                        {formattedDate}
-                    </span>
-                )}
-            </div>
-            <div className="text-xs text-slate-400 group-hover:text-primary-500 transition-colors flex items-center gap-1.5 mt-0.5">
-                <Notebook className="h-3 w-3" />
-                <span className="truncate" title={task.noteTitle}>{task.noteTitle}</span>
-            </div>
-        </div>
-      </li>
-    );
-  };
-
   if (allTasks.length === 0) {
     return (
       <div className="text-center p-8 text-slate-500 flex-1">
@@ -112,12 +132,20 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
 
   return (
     <div className="flex-1 overflow-y-auto p-2">
-      {Object.entries(groupedTasks).map(([groupName, tasks]) => (
+      {Object.entries(groupedTasks).map(([groupName, tasks]: [string, Task[]]) => (
         tasks.length > 0 && (
             <div key={groupName} className="mb-4">
                 <h3 className="font-semibold text-sm text-slate-500 dark:text-slate-400 px-2 py-1 uppercase tracking-wider">{groupName}</h3>
                 <ul className="space-y-0.5">
-                    {tasks.map(renderTaskItem)}
+                    {tasks.map(task => (
+                        <TaskItem 
+                            key={task.id} 
+                            task={task} 
+                            onToggle={updateTaskInNote} 
+                            onSelect={onSelectNote} 
+                            locale={locale}
+                        />
+                    ))}
                 </ul>
             </div>
         )
@@ -126,7 +154,7 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
         <div className="mt-4">
             <button 
                 onClick={() => setShowCompleted(!showCompleted)} 
-                className="w-full flex justify-between items-center px-2 py-1 text-left rounded-md hover:bg-slate-200 dark:hover:bg-slate-800"
+                className="w-full flex justify-between items-center px-2 py-1 text-left rounded-md hover:bg-slate-200 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
                 aria-expanded={showCompleted}
             >
                 <h3 className="font-semibold text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wider">
@@ -136,7 +164,15 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
             </button>
             {showCompleted && (
                 <ul className="space-y-0.5 mt-2">
-                    {completedTasks.map(renderTaskItem)}
+                    {completedTasks.map(task => (
+                        <TaskItem 
+                            key={task.id} 
+                            task={task} 
+                            onToggle={updateTaskInNote} 
+                            onSelect={onSelectNote} 
+                            locale={locale}
+                        />
+                    ))}
                 </ul>
             )}
         </div>

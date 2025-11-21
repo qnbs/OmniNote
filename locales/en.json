@@ -8,6 +8,7 @@
     "cancel": "Cancel",
     "delete": "Delete",
     "warning": "Warning",
+    "back": "Back",
     "searchPlaceholder": "Search notes...",
     "sidebar": {
         "notes": "Notes",
@@ -376,6 +377,14 @@
             "loading": "Researching...",
             "sources": "Sources",
             "notFound": "No online results found for this topic. Try refining your note content for better research results."
+        },
+        "chat": {
+            "title": "Chat with Note",
+            "placeholder": "Ask questions about your note...",
+            "inputPlaceholder": "Ask a question...",
+            "clear": "Clear Chat",
+            "send": "Send",
+            "thinking": "Thinking..."
         }
     },
     "toast": {

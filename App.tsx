@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Note } from './types';
+import { Note, ImportData, AppSettings, Template } from './types';
 import NoteList from './components/NoteList';
 import NoteEditor, { NoteEditorHandle } from './components/NoteEditor';
 import RightSidebar from './components/RightSidebar';
@@ -186,7 +186,7 @@ const AppContent: React.FC = () => {
 
   const handleExport = useCallback((exportType: 'all' | 'notes' | 'templates' | 'settings') => {
     try {
-        let dataToExport: any = {};
+        let dataToExport: ImportData = {};
         let filename = `omninote_backup_${new Date().toISOString().split('T')[0]}.json`;
 
         switch(exportType) {
@@ -223,7 +223,7 @@ const AppContent: React.FC = () => {
     }
   }, [notes, templates, settings, addToast, t]);
 
-  const handleImport = useCallback((data: { notes?: Note[], templates?: any[], settings?: any }) => {
+  const handleImport = useCallback((data: ImportData) => {
     importData(data);
     hideModal();
   }, [importData, hideModal]);
@@ -262,10 +262,11 @@ const AppContent: React.FC = () => {
 
   return (
       <div className={`
-        h-screen w-screen flex flex-col bg-slate-100 dark:bg-slate-900 text-slate-800 dark:text-slate-200 
+        h-screen w-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 
         ${settings.reduceMotion ? 'reduce-motion' : ''}
         ${densityClasses[settings.density] || ''}
         ${fontClasses[settings.font] || 'font-sans'}
+        overflow-hidden fixed inset-0
       `}>
         <style>{`
             .reduce-motion * {
@@ -273,59 +274,62 @@ const AppContent: React.FC = () => {
                 animation: none !important;
             }
         `}</style>
-        <div className="flex flex-1 overflow-hidden">
+        <div className="flex flex-1 overflow-hidden relative">
           {/* Left Sidebar */}
           <div className={`
-            w-full flex-col border-r border-slate-200 dark:border-slate-800
+            w-full flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900
             md:w-1/4 md:max-w-sm md:flex
             ${activeNoteId ? 'hidden md:flex' : 'flex'}
+            absolute md:relative h-full z-10 transition-transform duration-300
           `}>
-            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 compact-py comfortable-py">
+            <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 compact-py comfortable-py bg-slate-50/90 dark:bg-slate-900/90 backdrop-blur-md sticky top-0 z-20">
               <div className="flex items-center gap-2">
-                  <BrainCircuit className="h-8 w-8 text-primary-500"/>
-                  <h1 className="text-2xl font-bold text-slate-900 dark:text-white">OmniNote</h1>
+                  <div className="p-1.5 bg-gradient-to-br from-primary-400 to-primary-600 rounded-lg shadow-lg shadow-primary-500/20 text-white">
+                    <BrainCircuit className="h-6 w-6"/>
+                  </div>
+                  <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">OmniNote</h1>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={handleShowCommandPalette} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors" aria-label={t('commandPalette.title')} title={t('commandPalette.title')}>
+                <button onClick={handleShowCommandPalette} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('commandPalette.title')} title={t('commandPalette.title')}>
                     <Command className="h-5 w-5" />
                 </button>
-                <button ref={helpButtonRef} onClick={handleShowHelp} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors" aria-label={t('help.title')} title={t('help.title')}>
+                <button ref={helpButtonRef} onClick={handleShowHelp} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('help.title')} title={t('help.title')}>
                   <HelpCircle className="h-5 w-5" />
                 </button>
-                <button ref={settingsButtonRef} onClick={handleShowSettings} className="p-2 rounded-full bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 transition-colors" aria-label={t('settings.title')} title={t('settings.title')}>
+                <button ref={settingsButtonRef} onClick={handleShowSettings} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors" aria-label={t('settings.title')} title={t('settings.title')}>
                   <Settings className="h-5 w-5" />
                 </button>
                 <ThemeToggle />
               </div>
             </div>
             
-            <div className="p-2 border-b border-slate-200 dark:border-slate-800">
-                <div className="flex-grow flex justify-center bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+            <div className="p-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex p-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-lg">
                     <button
                         onClick={() => setLeftSidebarView('notes')}
-                        className={`w-1/3 py-2 px-4 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-                        leftSidebarView === 'notes' ? 'bg-white dark:bg-slate-900 text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-300'
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
+                        leftSidebarView === 'notes' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                     >
-                        <Notebook className="h-4 w-4" />
+                        <Notebook className="h-3.5 w-3.5" />
                         {t('sidebar.notes')}
                     </button>
                     <button
                         onClick={() => setLeftSidebarView('tasks')}
-                        className={`w-1/3 py-2 px-4 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-                        leftSidebarView === 'tasks' ? 'bg-white dark:bg-slate-900 text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-300'
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
+                        leftSidebarView === 'tasks' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                     >
-                        <CheckSquare className="h-4 w-4" />
+                        <CheckSquare className="h-3.5 w-3.5" />
                         {t('sidebar.tasks')}
                     </button>
                      <button
                         onClick={() => setLeftSidebarView('templates')}
-                        className={`w-1/3 py-2 px-4 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-                        leftSidebarView === 'templates' ? 'bg-white dark:bg-slate-900 text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-300'
+                        className={`flex-1 py-1.5 rounded-md text-xs font-medium flex items-center justify-center gap-2 transition-all ${
+                        leftSidebarView === 'templates' ? 'bg-white dark:bg-slate-700 text-primary-600 dark:text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                         }`}
                     >
-                        <LayoutTemplate className="h-4 w-4" />
+                        <LayoutTemplate className="h-3.5 w-3.5" />
                         {t('sidebar.templates')}
                     </button>
                 </div>
@@ -355,8 +359,9 @@ const AppContent: React.FC = () => {
 
           {/* Main Content */}
           <main className={`
-            flex-1 flex-col
+            flex-1 flex-col w-full
             ${activeNoteId ? 'flex' : 'hidden md:flex'}
+            relative z-0 bg-white dark:bg-slate-950 transition-colors duration-300
           `}>
             {activeNote ? (
               <NoteEditor
@@ -367,33 +372,44 @@ const AppContent: React.FC = () => {
                 onSelectNote={handleSelectNote}
               />
             ) : (
-              <div className="hidden items-center justify-center h-full text-slate-500 md:flex">
-                <div className="text-center">
-                  <BookOpenCheck className="mx-auto h-16 w-16 text-slate-400" />
-                  <p className="mt-4 text-xl font-semibold">{t('editor.selectNote')}</p>
-
-                  <p className="mt-2 text-slate-400">{t('editor.or')}</p>
+              <div className="hidden items-center justify-center h-full text-slate-400 dark:text-slate-600 md:flex bg-slate-50/30 dark:bg-slate-900/20">
+                <div className="text-center max-w-md px-6">
+                  <div className="mx-auto h-20 w-20 bg-slate-100 dark:bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
+                    <BookOpenCheck className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+                  </div>
+                  <p className="text-lg font-medium text-slate-600 dark:text-slate-400 mb-2">{t('editor.selectNote')}</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500 mb-6">{t('editor.or')}</p>
+                  
                   <button 
                     onClick={() => handleAddNote()}
-                    className="mt-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-all"
+                    className="px-5 py-2.5 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 transition-all shadow-lg shadow-primary-500/30 active:scale-95"
                   >
                     {t('editor.createNewNote')}
                   </button>
-                   <p className="mt-6 text-sm text-slate-400">
-                    {t('commandPalette.tip.text1')} <kbd className="px-2 py-1.5 text-xs font-semibold text-slate-800 bg-slate-100 border border-slate-200 rounded-md dark:bg-slate-600 dark:text-slate-100 dark:border-slate-500">{t('commandPalette.tip.kbd')}</kbd> {t('commandPalette.tip.text2')}
+                   <p className="mt-8 text-xs text-slate-400">
+                    {t('commandPalette.tip.text1')} <kbd className="px-2 py-1 mx-1 text-[10px] font-bold text-slate-500 bg-slate-200 border border-slate-300 rounded dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">{t('commandPalette.tip.kbd')}</kbd> {t('commandPalette.tip.text2')}
                    </p>
                 </div>
               </div>
             )}
           </main>
 
+          {/* Backdrop for Right Sidebar on Mobile */}
+          {isSidebarOpen && (
+            <div 
+                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-20 md:hidden transition-opacity duration-300"
+                onClick={() => setSidebarOpen(false)}
+                aria-hidden="true"
+            />
+          )}
+
           {/* Right Sidebar */}
           <div className={`
-              fixed top-0 right-0 h-full w-full z-30
-              bg-slate-50 dark:bg-slate-950
-              border-l border-slate-200 dark:border-slate-800
-              transition-transform duration-300 ease-in-out
-              md:relative md:w-1/3 md:max-w-md md:translate-x-0 md:z-auto
+              fixed top-0 right-0 h-full w-4/5 md:w-1/3 md:max-w-md z-30
+              bg-slate-50 dark:bg-slate-900
+              border-l border-slate-200 dark:border-slate-800 shadow-2xl md:shadow-none
+              transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+              md:relative md:translate-x-0 md:z-auto
               ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'}
             `}>
             <MemoizedRightSidebar 

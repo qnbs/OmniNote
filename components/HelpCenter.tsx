@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from './icons';
 import { useLocale } from '../contexts/LocaleContext';
@@ -89,14 +87,14 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ isOpen, onClose }) => {
 
   return (
     <div 
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" 
+        className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm" 
         aria-modal="true"
         role="dialog"
     >
-      <div ref={modalRef} className={`bg-slate-50 dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-4xl m-4 max-h-[90vh] flex flex-col transition-all duration-200 ease-out ${isEntering ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}>
-        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
-             <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Icons.HelpCircle className="h-7 w-7" />
+      <div ref={modalRef} className={`bg-slate-50 dark:bg-slate-900 w-full sm:max-w-4xl sm:m-4 h-full sm:h-auto sm:max-h-[90vh] sm:rounded-lg flex flex-col transition-all duration-300 ease-out ${isEntering ? 'opacity-100 translate-y-0 scale-100' : 'opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95'}`}>
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800 shrink-0">
+             <h2 className="text-xl md:text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Icons.HelpCircle className="h-6 w-6 md:h-7 md:w-7" />
                 {t('help.title')}
             </h2>
             <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800" aria-label={t('help.close')}>
@@ -104,24 +102,24 @@ const HelpCenter: React.FC<HelpCenterProps> = ({ isOpen, onClose }) => {
             </button>
         </div>
         
-        <div className="flex p-2 border-b border-slate-200 dark:border-slate-800">
-            <div className="flex-grow flex justify-center bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+        <div className="flex p-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+            <div className="flex-grow flex justify-between sm:justify-center bg-slate-200 dark:bg-slate-800 rounded-lg p-1 min-w-max sm:min-w-0">
             {TABS.map(tab => (
                 <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`w-1/3 py-2 px-4 rounded-md text-sm font-semibold flex items-center justify-center gap-2 transition-colors ${
-                    activeTab === tab.id ? 'bg-white dark:bg-slate-900 text-primary-600 dark:text-primary-400' : 'text-slate-600 dark:text-slate-300'
+                    className={`flex-1 py-2 px-2 sm:px-4 rounded-md text-xs sm:text-sm font-semibold flex items-center justify-center gap-1 sm:gap-2 transition-colors ${
+                    activeTab === tab.id ? 'bg-white dark:bg-slate-900 text-primary-600 dark:text-primary-400 shadow-sm' : 'text-slate-600 dark:text-slate-300'
                     }`}
                 >
                     {tab.icon}
-                    {tab.label}
+                    <span className="whitespace-nowrap">{tab.label}</span>
                 </button>
             ))}
             </div>
         </div>
         
-        <div className="p-6 overflow-y-auto prose prose-slate dark:prose-invert max-w-none">
+        <div className="p-4 sm:p-6 overflow-y-auto prose prose-slate dark:prose-invert max-w-none pb-20 sm:pb-6">
             {activeTab === 'guide' && <Guide />}
             {activeTab === 'faq' && <FAQ />}
             {activeTab === 'glossary' && <Glossary />}

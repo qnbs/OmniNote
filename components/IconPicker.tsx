@@ -44,18 +44,21 @@ const IconPicker: React.FC<IconPickerProps> = ({ onSelect, onClose }) => {
                 placeholder="Search icons..."
                 className="w-full px-2 py-1 mb-2 text-sm bg-slate-100 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-md focus:outline-none focus:ring-1 focus:ring-primary-500"
                 autoFocus
+                aria-label="Search icons"
             />
             <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto">
                 {filteredIcons.map(iconName => {
-                    const IconComponent = (Icons as any)[iconName];
+                    // Cast Icons to a Record to allow dynamic access by string key safely
+                    const IconComponent = (Icons as Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>>)[iconName];
                     return (
                         <button
                             key={iconName}
                             onClick={() => onSelect(iconName)}
                             title={iconName}
-                            className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center"
+                            aria-label={`Select ${iconName} icon`}
+                            className="p-2 rounded-md hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary-500"
                         >
-                            <IconComponent className="h-5 w-5" />
+                            {IconComponent && <IconComponent className="h-5 w-5" />}
                         </button>
                     )
                 })}

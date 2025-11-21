@@ -8,6 +8,7 @@
     "cancel": "Abbrechen",
     "delete": "Löschen",
     "warning": "Warnung",
+    "back": "Zurück",
     "searchPlaceholder": "Notizen suchen...",
     "sidebar": {
         "notes": "Notizen",
@@ -375,6 +376,14 @@
             "loading": "Recherchiere...",
             "sources": "Quellen",
             "notFound": "Keine Online-Ergebnisse zu diesem Thema gefunden. Versuchen Sie, Ihren Notizinhalt zu verfeinern, um bessere Rechercheergebnisse zu erzielen."
+        },
+        "chat": {
+            "title": "Mit Notiz chatten",
+            "placeholder": "Stellen Sie Fragen zu Ihrer Notiz...",
+            "inputPlaceholder": "Stelle eine Frage...",
+            "clear": "Chat leeren",
+            "send": "Senden",
+            "thinking": "Denke nach..."
         }
     },
     "toast": {
