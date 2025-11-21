@@ -15,7 +15,7 @@
 ![Redux Toolkit](https://img.shields.io/badge/Redux_Toolkit-593D88?style=for-the-badge&logo=redux&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript_5-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite_6-B73C9D?style=for-the-badge&logo=vite&logoColor=white)
-![Gemini](https://img.shields.io/badge/Google_Gemini_2.0-8E75B2?style=for-the-badge&logo=google-bard&logoColor=white)
+![Gemini](https://img.shields.io/badge/Google_Gemini_2.5-8E75B2?style=for-the-badge&logo=google-bard&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
 
 <br />
@@ -88,7 +88,7 @@ graph TD
     subgraph "Intelligence Layer"
         Actions --> Thunks[Async Thunks]
         Thunks --> GeminiSDK[Google GenAI SDK]
-        GeminiSDK --> LLM[Gemini 2.0 Flash/Pro]
+        GeminiSDK --> LLM[Gemini 2.5 Flash / 3.0 Pro]
         LLM --> JSON[Structured JSON]
         JSON --> Reducers
     end

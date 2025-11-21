@@ -15,16 +15,16 @@ const getAiClient = () => {
 const getSophisticatedInstruction = (locale: 'en' | 'de', context: 'analytical' | 'creative' | 'strategic' | 'technical' = 'analytical') => {
   const styles = {
     en: {
-      analytical: "Adopt the persona of a Chief Intelligence Officer. Output must be rigorously empirical, identifying latent patterns, structural contradictions, and second-order effects. Use precise, high-register vocabulary.",
+      analytical: "Adopt the persona of a Chief Intelligence Officer. Use Chain-of-Thought reasoning to dissect the input. Output must be rigorously empirical, identifying latent patterns, structural contradictions, and second-order effects. Use precise, high-register vocabulary.",
       creative: "Adopt the persona of a Visionary Director. Prioritize lateral thinking, metaphorical resonance, and aesthetic coherence. Avoid clichés; seek the 'oblique angle' and novel synthesis.",
       strategic: "Adopt the persona of a Management Consultant (MBB level). Focus on MECE (Mutually Exclusive, Collectively Exhaustive) frameworks, critical path analysis, and high-leverage interventions. Be action-oriented and risk-aware.",
       technical: "Adopt the persona of a Distinguished Engineer. Focus on system design, scalability, corner cases, and idiomatic patterns. Prefer robust, maintainable solutions over clever hacks."
     },
     de: {
-      analytical: "Agieren Sie als Chefanalyst. Die Ausgabe muss rigoros empirisch sein und latente Muster, strukturelle Widersprüche sowie Effekte zweiter Ordnung identifizieren. Verwenden Sie eine präzise, gehobene Fachsprache. Sprechen Sie den Nutzer formell (Sie) an.",
-      creative: "Agieren Sie als visionärer Creative Director. Priorisieren Sie laterales Denken, metaphorische Resonanz und ästhetische Kohärenz. Vermeiden Sie Klischees; suchen Sie innovative Synthesen. Sprechen Sie den Nutzer formell (Sie) an.",
-      strategic: "Agieren Sie als Strategieberater (Top-Tier). Fokussieren Sie auf MECE-Frameworks, Analyse des kritischen Pfads und Maßnahmen mit hoher Hebelwirkung. Seien Sie handlungsorientiert und risikobewusst. Formelle Ansprache (Sie).",
-      technical: "Agieren Sie als Principal Software Architect. Fokussieren Sie auf Systemdesign, Skalierbarkeit, Randfälle und idiomatische Muster. Bevorzugen Sie robuste, wartbare Lösungen. Formelle Ansprache (Sie)."
+      analytical: "Agieren Sie als Chefanalyst. Nutzen Sie Chain-of-Thought-Prozesse. Die Ausgabe muss rigoros empirisch sein und latente Muster, strukturelle Widersprüche sowie Effekte zweiter Ordnung identifizieren. Verwenden Sie eine präzise, gehobene Fachsprache.",
+      creative: "Agieren Sie als visionärer Creative Director. Priorisieren Sie laterales Denken, metaphorische Resonanz und ästhetische Kohärenz. Vermeiden Sie Klischees; suchen Sie innovative Synthesen.",
+      strategic: "Agieren Sie als Strategieberater (Top-Tier). Fokussieren Sie auf MECE-Frameworks, Analyse des kritischen Pfads und Maßnahmen mit hoher Hebelwirkung. Seien Sie handlungsorientiert und risikobewusst.",
+      technical: "Agieren Sie als Principal Software Architect. Fokussieren Sie auf Systemdesign, Skalierbarkeit, Randfälle und idiomatische Muster. Bevorzugen Sie robuste, wartbare Lösungen."
     }
   };
 
@@ -81,7 +81,8 @@ async function generateAndParseJSON<T>(
       try {
           return JSON.parse(textResponse) as T;
       } catch (e) {
-           throw new Error("Failed to parse JSON response.");
+           console.error("JSON Parse Error, received:", textResponse);
+           throw new Error("Failed to parse JSON response from AI.");
       }
   });
 }
@@ -119,14 +120,22 @@ export const getAnalysis = async (content: string, options: { depth: 'standard' 
   const thinkingConfig = isDeep ? { thinkingConfig: { thinkingBudget: 4096 } } : {};
 
   const prompt = `
-    Analyze the following text.
-    1. Synthesize an executive summary.
-    2. Evaluate semantic complexity (1-10).
-    3. Extract key entities.
-    4. Determine sentiment.
-    ${instruction}
+    TASK: Perform a multi-dimensional analysis of the provided text.
     
-    Text: "${content.substring(0, 10000)}"
+    STEPS:
+    1. Read the text carefully to understand context, subtext, and tone.
+    2. Identify the core thesis and supporting arguments.
+    3. Extract key entities (people, places, organizations, abstract concepts).
+    4. Evaluate the semantic complexity on a scale of 1-10.
+    5. Synthesize a high-level executive summary (max 3 sentences).
+    6. Suggest 5-7 precise taxonomy tags for knowledge graph clustering.
+
+    INPUT TEXT:
+    """
+    ${content.substring(0, 15000)}
+    """
+
+    ${instruction}
   `;
   
   return generateAndParseJSON<AdvancedAnalysisResult>(
@@ -134,7 +143,7 @@ export const getAnalysis = async (content: string, options: { depth: 'standard' 
     prompt,
     { 
         responseSchema: advancedAnalysisSchema,
-        systemInstruction: "You are an elite intelligence analyst. Output strict JSON.",
+        systemInstruction: "You are an elite intelligence analyst. Your output must be strictly valid JSON.",
         ...thinkingConfig
     }
   );
@@ -153,19 +162,27 @@ const brainstormSchema = {
 
 export const getBrainstormingIdeas = async (content: string, options: { count: number, level: string }, locale: 'en' | 'de'): Promise<BrainstormSuggestion> => {
     const instruction = getSophisticatedInstruction(locale, 'creative');
-    const temperature = options.level === 'wild' ? 1.4 : options.level === 'balanced' ? 0.9 : 0.5;
+    const temperature = options.level === 'wild' ? 1.6 : options.level === 'balanced' ? 0.9 : 0.5;
     
     return generateAndParseJSON<BrainstormSuggestion>(
         "gemini-2.5-flash",
         `
-        Context: "${content.substring(0, 5000)}"
-        Task: Brainstorm exactly ${options.count} distinct ideas.
+        TASK: Generate divergent creative ideas based on the context.
+        
+        CONTEXT:
+        "${content.substring(0, 5000)}"
+        
+        REQUIREMENTS:
+        - Generate exactly ${options.count} distinct ideas.
+        - Level of Creativity: ${options.level.toUpperCase()}.
+        - Avoid generic suggestions; aim for novel, specific, and actionable concepts.
+        
         ${instruction}
         `,
         {
           responseSchema: brainstormSchema,
           temperature: temperature,
-          systemInstruction: "You are a world-class creative strategist. Output strict JSON."
+          systemInstruction: "You are a world-class creative strategist. Output strictly valid JSON."
         }
     );
 };
@@ -197,16 +214,28 @@ export const getStrategicPlan = async (content: string, options: { detail: 'simp
       const model = isStrategic ? "gemini-3-pro-preview" : "gemini-2.5-flash";
       const thinkingConfig = isStrategic ? { thinkingConfig: { thinkingBudget: 4096 } } : {};
 
+      const prompt = `
+      TASK: Create a strategic execution plan based on the input.
+      
+      METHODOLOGY:
+      1. Define the primary Goal.
+      2. Decompose the goal into MECE (Mutually Exclusive, Collectively Exhaustive) tasks.
+      3. Prioritize tasks based on impact/effort.
+      4. Estimate time for execution.
+      5. ${isStrategic ? 'Break down tasks into granular subtasks.' : 'Keep tasks high-level.'}
+      
+      INPUT CONTEXT:
+      "${content.substring(0, 10000)}"
+      
+      ${instruction}
+      `;
+
       return generateAndParseJSON<StrategicPlanResult>(
         model,
-        `
-        Context: "${content.substring(0, 10000)}"
-        Task: Create a plan.
-        ${instruction}
-        `,
+        prompt,
         { 
             responseSchema: strategicPlanSchema,
-            systemInstruction: "You are a senior project director. Output strict JSON.",
+            systemInstruction: "You are a senior project director. Output strictly valid JSON.",
             ...thinkingConfig
         }
       );
@@ -217,11 +246,15 @@ export const getResearchLinks = async (content: string, locale: 'en' | 'de'): Pr
   const instruction = getSophisticatedInstruction(locale, 'analytical');
   
   const prompt = `
-    Identify key claims or entities that require verification.
-    Provide a synthesis answering implicit questions.
-    Use Google Search for authoritative sources.
+    TASK: Verify facts and find authoritative sources.
     
-    Context: "${content.substring(0, 2000)}"
+    STEPS:
+    1. Identify key claims, entities, or statistics in the text that require verification.
+    2. Synthesize a brief answer to implicit questions found in the text.
+    3. Use Google Search to find authoritative sources (academic, reputable news, official docs).
+    
+    INPUT TEXT:
+    "${content.substring(0, 2000)}"
     
     ${instruction}
   `;
@@ -259,7 +292,8 @@ export const translateNote = async (content: string, language: string): Promise<
     return generateAndParseJSON<TranslateSuggestion>(
         "gemini-2.5-flash",
         `
-        Translate to ${language}. Maintain Markdown.
+        TASK: Translate the text to ${language}.
+        CONSTRAINT: Maintain all Markdown formatting (bold, italics, links, headers) exactly.
         Text: "${content}"
         `,
         { responseSchema: translationSchema }
@@ -277,7 +311,7 @@ const formatSchema = {
 export const formatNote = async (content: string): Promise<FormatSuggestion> => {
     return generateAndParseJSON<FormatSuggestion>(
         "gemini-2.5-flash",
-        `Refactor into professional Markdown. Text: "${content}"`,
+        `TASK: Refactor the text into professional, structured Markdown. Fix grammar, improve readability, and ensure consistent header hierarchy. Text: "${content}"`,
         { responseSchema: formatSchema }
     );
 };
@@ -291,12 +325,15 @@ export const generateImageFromNote = async (
 ): Promise<ImageSuggestion> => {
     const ai = getAiClient();
     
-    const styleDescriptor = style; // Simplified for brevity, map in UI or here if needed
+    const styleDescriptor = style;
 
     const prompt = `
-        Create an image for concept: "${noteTitle}".
-        Context: "${noteContent.substring(0, 500)}".
-        Style: ${styleDescriptor}.
+        Create a high-fidelity visual representation of the following concept.
+        Concept Title: "${noteTitle}"
+        Context/Description: "${noteContent.substring(0, 500)}"
+        Artistic Style: ${styleDescriptor}
+        Lighting: Professional, cinematic lighting.
+        Composition: Balanced, obeying the rule of thirds.
     `;
     
     const isHd = quality === 'hd';
@@ -354,9 +391,18 @@ export const runBlogPostRecipe = async (originalTitle: string, noteContent: stri
     return generateAndParseJSON<AiRecipeResult>(
         "gemini-2.5-flash",
         `
-        Transform notes into a blog post.
-        Original Context: "${originalTitle}"
+        TASK: Transform the provided notes into a polished, SEO-optimized blog post.
+        
+        INPUT CONTEXT:
+        Title: "${originalTitle}"
         Notes: "${noteContent.substring(0, 10000)}"
+        
+        GUIDELINES:
+        - Use a catchy headline.
+        - Structure with clear H2/H3 headers.
+        - Use engaging, accessible language.
+        - Optimize for reader retention.
+        
         ${instruction}
         `,
         { responseSchema: blogPostSchema }
@@ -378,13 +424,23 @@ export const runMeetingAnalysisRecipe = async (noteContent: string, locale: 'en'
      return generateAndParseJSON<AiRecipeResult>(
         "gemini-3-pro-preview",
         `
-        Synthesize meeting notes into executive briefing.
-        Raw Notes: "${noteContent.substring(0, 10000)}"
+        TASK: Synthesize raw meeting notes into a structured Executive Briefing.
+        
+        RAW NOTES:
+        "${noteContent.substring(0, 10000)}"
+        
+        OUTPUT FORMAT:
+        1. Meeting Details (Date, Attendees - inferred)
+        2. Executive Summary (The "Bottom Line Up Front")
+        3. Key Decisions Made
+        4. Action Items (Who, What, When)
+        5. Open Questions
+        
         ${instruction}
         `,
         { 
             responseSchema: meetingAnalysisSchema,
-            systemInstruction: "You are an executive secretary. Output strict JSON.",
+            systemInstruction: "You are an executive secretary. Output strictly valid JSON.",
             thinkingConfig: { thinkingBudget: 2048 }
         }
     );
@@ -405,8 +461,17 @@ export const runSocialPostRecipe = async (noteContent: string, locale: 'en' | 'd
     return generateAndParseJSON<AiRecipeResult>(
         "gemini-2.5-flash",
         `
-        Draft a social media post.
-        Notes: "${noteContent.substring(0, 5000)}"
+        TASK: Draft a viral social media post based on the notes.
+        
+        NOTES: "${noteContent.substring(0, 5000)}"
+        
+        GUIDELINES:
+        - Hook the reader in the first line.
+        - Provide value or insight.
+        - Use relevant emojis.
+        - Include 3-5 relevant hashtags.
+        - Keep it under 280 characters if possible, or thread format if longer.
+        
         ${instruction}
         `,
         { responseSchema: socialPostSchema }
@@ -414,20 +479,19 @@ export const runSocialPostRecipe = async (noteContent: string, locale: 'en' | 'd
 };
 
 // --- Chat Logic ---
-// Kept largely the same but ensured types
 
 const CHAT_INSTRUCTIONS = {
     en: {
-        base: "You are an intelligent knowledge assistant. Answer based on context.\n\n",
-        socratic: "\n\nPERSONA: Socratic Mentor.",
-        critic: "\n\nPERSONA: Principal Reviewer.",
-        coder: "\n\nPERSONA: Staff Engineer."
+        base: "You are an intelligent knowledge assistant embedded in OmniNote. Your goal is to help the user clarify, expand, and connect ideas.\n\n",
+        socratic: "\n\nPERSONA: Socratic Mentor. Do not give direct answers. Ask probing questions to guide the user to the answer. Use maieutics.",
+        critic: "\n\nPERSONA: Principal Reviewer. Be critical. Look for logical fallacies, weak arguments, and structural issues. Provide constructive but stern feedback.",
+        coder: "\n\nPERSONA: Staff Engineer. Focus on technical accuracy, best practices, efficiency, and clean code. Assume the user is technical."
     },
     de: {
-        base: "Sie sind ein intelligenter Wissensassistent. Antworten Sie basierend auf dem Kontext.\n\n",
-        socratic: "\n\nPERSONA: Sokratischer Mentor.",
-        critic: "\n\nPERSONA: Chef-Kritiker.",
-        coder: "\n\nPERSONA: Software Architect."
+        base: "Sie sind ein intelligenter Wissensassistent in OmniNote. Ihr Ziel ist es, dem Nutzer zu helfen, Ideen zu klären, zu erweitern und zu verbinden.\n\n",
+        socratic: "\n\nPERSONA: Sokratischer Mentor. Geben Sie keine direkten Antworten. Stellen Sie bohrende Fragen, um den Nutzer zur Antwort zu führen.",
+        critic: "\n\nPERSONA: Chef-Kritiker. Seien Sie kritisch. Suchen Sie nach logischen Fehlschlüssen, schwachen Argumenten und strukturellen Problemen.",
+        coder: "\n\nPERSONA: Software Architect. Fokussieren Sie auf technische Genauigkeit, Best Practices, Effizienz und sauberen Code."
     }
 };
 
@@ -446,7 +510,17 @@ export const streamChatWithNote = async (
     }));
 
     const instructions = CHAT_INSTRUCTIONS[locale];
-    let systemInstruction = `${instructions.base}--- CONTEXT ---\n${noteContent.substring(0, 20000)}\n--- END CONTEXT ---`;
+    let systemInstruction = `${instructions.base}
+    
+    --- CURRENT NOTE CONTEXT ---
+    ${noteContent.substring(0, 20000)}
+    --- END CONTEXT ---
+    
+    INSTRUCTIONS:
+    - Reference the note context explicitly when answering.
+    - Use Markdown for formatting (bold, lists, code blocks).
+    - Be concise unless asked to elaborate.
+    `;
     
     // Mapping logic for personas
     if (persona === 'socratic') systemInstruction += instructions.socratic;

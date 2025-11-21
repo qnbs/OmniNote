@@ -43,7 +43,10 @@ const useNoteEditor = (note: Note, allNotes: Note[], onSelectNote: (id: string) 
     const titleRef = useRef<HTMLInputElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const [debouncedContent, setDebouncedContent] = useState(content);
-    const isSyncingScrollRef = useRef(false);
+    
+    // Scroll locking mechanism
+    const isScrollingRef = useRef(false);
+    const scrollTimeoutRef = useRef<number | null>(null);
 
     useImperativeHandle(ref, () => ({
         focusTitle: () => {
@@ -151,28 +154,29 @@ const useNoteEditor = (note: Note, allNotes: Note[], onSelectNote: (id: string) 
     }, [debouncedContent, allNotes, t]);
 
     const syncScroll = useCallback((source: 'editor' | 'preview') => {
-        if (isSyncingScrollRef.current) return;
-        isSyncingScrollRef.current = true;
+        if (isScrollingRef.current) return;
+        
+        const sourceEl = source === 'editor' ? contentRef.current : previewRef.current;
+        const targetEl = source === 'editor' ? previewRef.current : contentRef.current;
+        
+        if (!sourceEl || !targetEl) return;
 
-        const editor = contentRef.current;
-        const preview = previewRef.current;
-        if (!editor || !preview) return;
+        isScrollingRef.current = true;
 
-        if (source === 'editor') {
-            const scrollableDist = editor.scrollHeight - editor.clientHeight;
-            if (scrollableDist <= 0) return;
-            const scrollPercent = editor.scrollTop / scrollableDist;
-            preview.scrollTop = scrollPercent * (preview.scrollHeight - preview.clientHeight);
-        } else {
-            const scrollableDist = preview.scrollHeight - preview.clientHeight;
-            if (scrollableDist <= 0) return;
-            const scrollPercent = preview.scrollTop / scrollableDist;
-            editor.scrollTop = scrollPercent * (editor.scrollHeight - editor.clientHeight);
-        }
-
-        setTimeout(() => {
-            isSyncingScrollRef.current = false;
-        }, 100);
+        requestAnimationFrame(() => {
+            const percentage = sourceEl.scrollTop / (sourceEl.scrollHeight - sourceEl.clientHeight);
+            if (!isNaN(percentage)) {
+                targetEl.scrollTop = percentage * (targetEl.scrollHeight - targetEl.clientHeight);
+            }
+            
+            // Clear any existing timeout to avoid racing
+            if (scrollTimeoutRef.current) window.clearTimeout(scrollTimeoutRef.current);
+            
+            // Release lock after a short delay
+            scrollTimeoutRef.current = window.setTimeout(() => {
+                isScrollingRef.current = false;
+            }, 10);
+        });
     }, []);
     
     const applyMarkdown = useCallback((syntax: { prefix: string; suffix?: string; placeholder?: string }) => {

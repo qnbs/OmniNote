@@ -94,7 +94,13 @@ const TaskView: React.FC<TaskViewProps> = ({ onSelectNote }) => {
 
       const newDoneState = !taskToUpdate.done;
       const newCheckbox = newDoneState ? '[x]' : '[ ]';
-      const newLine = rawLine.replace(/\[( |x)\]/, newCheckbox);
+      
+      // Robust replacement: 
+      // 1. Capture indentation (\s*) and hyphen (- )
+      // 2. Match the checkbox exactly \[( |x)\]
+      // 3. Replace only the checkbox part, preserving indentation
+      const newLine = rawLine.replace(/^(\s*- )\[( |x)\]/, `$1${newCheckbox}`);
+      
       lines[realIndex] = newLine;
 
       const newContent = lines.join('\n');

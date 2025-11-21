@@ -1,17 +1,18 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo, createContext, useContext } from 'react';
 import { Note } from '../core/types/note';
-import { AiAgentData, AiAgentSettings } from '../core/types/ai';
+import { AiAgentData, AiAgentSettings, AgentMeta, AgentFeedback } from '../core/types/ai';
 import * as geminiService from '../services/geminiService';
-import { BrainCircuit, Lightbulb, Loader2, AlertTriangle, Plus, Copy, Settings, Image, Sparkles, Megaphone, ChevronLeft, MessageSquare, Send, Trash2, Activity, Target, Clock, User } from './icons';
+import { BrainCircuit, Lightbulb, Loader2, AlertTriangle, Plus, Copy, Settings, Image, Sparkles, Megaphone, ChevronLeft, MessageSquare, Send, Trash2, Activity, Target, Clock, User, ThumbsUp, ThumbsDown } from './icons';
 import { useAppDispatch, useAppSelector } from '../core/store/hooks';
-import { runAiAgent, streamChat, clearChat, addChatMessage, resetAiState } from '../features/ai/aiSlice';
+import { runAiAgent, streamChat, clearChat, addChatMessage, resetAiState, setAgentFeedback, saveToCache } from '../features/ai/aiSlice';
 import { setAiSetting } from '../features/settings/settingsSlice';
 import { addToast } from '../features/ui/uiSlice';
 import { updateNote } from '../features/notes/noteSlice';
 import { useLocale } from '../contexts/LocaleContext';
 import { marked } from 'marked';
 import DOMPurify from 'dompurify';
+import ErrorBoundary from './ErrorBoundary';
 
 // --- Configuration Constants ---
 const IDEA_COUNTS: AiAgentSettings['ideaCount'][] = [3, 5, 7];
@@ -69,6 +70,32 @@ const ThinkingIndicator = () => {
     );
 };
 
+const FeedbackButtons: React.FC<{ agentName: string, current: AgentFeedback, latency: number | null }> = ({ agentName, current, latency }) => {
+    const dispatch = useAppDispatch();
+    const handleFeedback = (val: AgentFeedback) => {
+        dispatch(setAgentFeedback({ agentName, feedback: val === current ? null : val }));
+    };
+
+    return (
+        <div className="flex items-center gap-3 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+             {latency && (
+                <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {(latency / 1000).toFixed(2)}s
+                </span>
+            )}
+            <div className="flex items-center gap-1 ml-auto">
+                <button onClick={() => handleFeedback('positive')} className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${current === 'positive' ? 'text-green-500' : 'text-slate-400'}`}>
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => handleFeedback('negative')} className={`p-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors ${current === 'negative' ? 'text-red-500' : 'text-slate-400'}`}>
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                </button>
+            </div>
+        </div>
+    )
+}
+
 // --- Logic Hook ---
 const useAiAgentPanel = (activeNote: Note | null) => {
     const dispatch = useAppDispatch();
@@ -82,15 +109,33 @@ const useAiAgentPanel = (activeNote: Note | null) => {
     const [chatInput, setChatInput] = useState('');
     const chatEndRef = useRef<HTMLDivElement>(null);
     const isApiKeySet = !!process.env.API_KEY;
+    const previousNoteIdRef = useRef<string | null>(null);
 
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [aiState.chatMessages, aiState.loadingAgent]);
+    }, [aiState.chatMessages, aiState.meta['chat'].status]);
 
+    // Handle caching and state reset on note switch
     useEffect(() => {
-        dispatch(resetAiState());
-        dispatch(clearChat());
+        if (activeNote?.id && activeNote.id !== previousNoteIdRef.current) {
+            // Save current state to cache if we are switching FROM a note
+            if (previousNoteIdRef.current) {
+                dispatch(saveToCache({ noteId: previousNoteIdRef.current }));
+            }
+            // Initialize/Restore state for new note
+            dispatch(resetAiState({ noteId: activeNote.id }));
+            previousNoteIdRef.current = activeNote.id;
+        }
     }, [activeNote?.id, dispatch]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (previousNoteIdRef.current) {
+                dispatch(saveToCache({ noteId: previousNoteIdRef.current }));
+            }
+        };
+    }, [dispatch]);
 
     const toggleSection = useCallback((section: string) => {
         setCollapsedSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -132,10 +177,10 @@ const useAiAgentPanel = (activeNote: Note | null) => {
     }, [activeNote, locale]);
 
     const handleChatSubmit = useCallback(async () => {
-        if (!activeNote || !chatInput.trim() || aiState.loadingAgent === 'chat') return;
+        if (!activeNote || !chatInput.trim() || aiState.meta['chat'].status === 'loading') return;
         const message = chatInput.trim();
         setChatInput('');
-        dispatch(addChatMessage({ role: 'user', text: message }));
+        dispatch(addChatMessage({ id: Date.now().toString(), role: 'user', text: message, timestamp: Date.now() }));
         dispatch(streamChat({
             noteContent: activeNote.content,
             history: aiState.chatMessages,
@@ -143,7 +188,7 @@ const useAiAgentPanel = (activeNote: Note | null) => {
             persona: localConfig.chatPersona,
             locale
         }));
-    }, [activeNote, chatInput, aiState.loadingAgent, aiState.chatMessages, localConfig.chatPersona, locale, dispatch]);
+    }, [activeNote, chatInput, aiState.meta, aiState.chatMessages, localConfig.chatPersona, locale, dispatch]);
 
     const handleApplyTags = useCallback((newTags: string[]) => {
         if(!activeNote) return;
@@ -188,7 +233,6 @@ const useAiAgentPanel = (activeNote: Note | null) => {
         chatInput,
         chatEndRef,
         isApiKeySet,
-        isRecipeLoading: aiState.loadingAgent && aiState.loadingAgent.startsWith('recipe-'),
         // Actions
         toggleSection,
         setConfig,
@@ -224,7 +268,8 @@ const useAiContext = () => {
 const ChatAgent = () => {
     const { t } = useLocale();
     const { aiState, localConfig, collapsedSections, toggleSection, isApiKeySet, setConfig, chatInput, setChatInput, handleChatSubmit, clearChat, chatEndRef } = useAiContext();
-    
+    const meta = aiState.meta['chat'];
+
     return (
         <AgentSection
             title={t('aiPanel.chat.title')}
@@ -233,6 +278,7 @@ const ChatAgent = () => {
             isCollapsed={!!collapsedSections['chat']}
             onToggleCollapse={() => toggleSection('chat')}
             disabled={!isApiKeySet}
+            meta={meta}
             settingsPopover={
                 <AgentSettingsPopover disabled={!isApiKeySet}>
                     <div className="p-2 w-48">
@@ -247,6 +293,7 @@ const ChatAgent = () => {
                 </AgentSettingsPopover>
             }
         >
+            <ErrorBoundary sectionName="Chat Agent">
             <div className="flex flex-col h-[350px]">
                 <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-800 mb-2 scroll-smooth">
                     {aiState.chatMessages.length === 0 && (
@@ -255,10 +302,10 @@ const ChatAgent = () => {
                             <p className="text-xs">{t('aiPanel.chat.emptyState')}</p>
                         </div>
                     )}
-                    {aiState.chatMessages.map((msg, index) => (
-                        <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {aiState.chatMessages.map((msg) => (
+                        <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm shadow-sm ${msg.role === 'user' ? 'bg-primary-600 text-white rounded-tr-sm' : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-sm'}`}>
-                                {msg.role === 'model' && !msg.text && aiState.loadingAgent === 'chat' && index === aiState.chatMessages.length - 1 ? (
+                                {msg.role === 'model' && !msg.text && meta.status === 'loading' ? (
                                     <span className="flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /></span>
                                 ) : (
                                     <MarkdownResult content={msg.text} className={msg.role === 'user' ? 'prose-invert text-white' : ''} />
@@ -277,13 +324,14 @@ const ChatAgent = () => {
                             onChange={(e) => setChatInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleChatSubmit()}
                             placeholder={t('aiPanel.chat.inputPlaceholder')}
-                            disabled={aiState.loadingAgent === 'chat' || !isApiKeySet}
+                            disabled={meta.status === 'loading' || !isApiKeySet}
                             className="w-full pl-4 pr-10 py-2 text-sm rounded-full border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500"
                         />
-                        <button onClick={handleChatSubmit} disabled={!chatInput.trim() || aiState.loadingAgent === 'chat'} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-50 transition-all active:scale-90"><Send className="h-3 w-3" /></button>
+                        <button onClick={handleChatSubmit} disabled={!chatInput.trim() || meta.status === 'loading'} className="absolute right-1 top-1/2 -translate-y-1/2 p-1.5 bg-primary-600 text-white rounded-full hover:bg-primary-700 disabled:opacity-50 transition-all active:scale-90"><Send className="h-3 w-3" /></button>
                     </div>
                 </div>
             </div>
+            </ErrorBoundary>
         </AgentSection>
     );
 };
@@ -291,19 +339,20 @@ const ChatAgent = () => {
 const AnalysisAgent = () => {
     const { t } = useLocale();
     const { aiState, runAnalysis, handleApplyTags, handlePrependSummary, localConfig, setConfig, collapsedSections, toggleSection, isApiKeySet } = useAiContext();
+    const meta = aiState.meta['analysis'];
 
     return (
         <AgentSection
             title={t('aiPanel.analysis.title')}
             icon={<BrainCircuit className="h-4 w-4 text-purple-500" />}
             onRun={runAnalysis}
-            isLoading={aiState.loadingAgent === 'analysis'}
+            meta={meta}
             buttonText={t('aiPanel.analysis.button')}
             isCollapsed={!!collapsedSections['analysis']}
             onToggleCollapse={() => toggleSection('analysis')}
             disabled={!isApiKeySet}
             settingsPopover={
-                <AgentSettingsPopover disabled={aiState.loadingAgent === 'analysis' || !isApiKeySet}>
+                <AgentSettingsPopover disabled={meta.status === 'loading' || !isApiKeySet}>
                     <div className="text-xs p-2 w-48">
                         <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">{t('aiPanel.settings.depth')}</label>
                         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
@@ -314,9 +363,10 @@ const AnalysisAgent = () => {
                 </AgentSettingsPopover>
             }
         >
+            <ErrorBoundary sectionName="Analysis Agent">
             <div role="status" aria-live="polite" className="space-y-3">
-            {aiState.isThinking && <ThinkingIndicator />}
-            {aiState.analysis && !aiState.isThinking && (
+            {aiState.isThinking && meta.status === 'loading' && <ThinkingIndicator />}
+            {aiState.analysis && meta.status === 'succeeded' && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
                 {/* Metrics Row */}
                 <div className="flex items-center gap-2">
@@ -350,9 +400,11 @@ const AnalysisAgent = () => {
                     </div>
                 )}
                 <button onClick={handlePrependSummary} className="w-full py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">{t('aiPanel.actions.prepend')}</button>
+                <FeedbackButtons agentName="analysis" current={meta.feedback} latency={meta.latency} />
                 </div>
             )}
             </div>
+            </ErrorBoundary>
         </AgentSection>
     );
 };
@@ -360,19 +412,20 @@ const AnalysisAgent = () => {
 const PlanAgent = () => {
     const { t } = useLocale();
     const { aiState, runPlan, handleAppendPlan, localConfig, setConfig, collapsedSections, toggleSection, isApiKeySet } = useAiContext();
+    const meta = aiState.meta['plan'];
 
     return (
         <AgentSection
             title={t('aiPanel.plan.title')}
             icon={<Target className="h-4 w-4 text-emerald-500" />}
             onRun={runPlan}
-            isLoading={aiState.loadingAgent === 'plan'}
+            meta={meta}
             buttonText={t('aiPanel.plan.button')}
             isCollapsed={!!collapsedSections['plan']}
             onToggleCollapse={() => toggleSection('plan')}
             disabled={!isApiKeySet}
             settingsPopover={
-                <AgentSettingsPopover disabled={aiState.loadingAgent === 'plan' || !isApiKeySet}>
+                <AgentSettingsPopover disabled={meta.status === 'loading' || !isApiKeySet}>
                     <div className="text-xs p-2 w-48">
                         <label className="text-xs font-semibold text-slate-500 uppercase mb-2 block">{t('aiPanel.settings.detailLevel')}</label>
                         <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
@@ -383,9 +436,10 @@ const PlanAgent = () => {
                 </AgentSettingsPopover>
             }
         >
+            <ErrorBoundary sectionName="Plan Agent">
             <div role="status" aria-live="polite" className="space-y-3">
-            {aiState.isThinking && <ThinkingIndicator />}
-            {aiState.plan && !aiState.isThinking && (
+            {aiState.isThinking && meta.status === 'loading' && <ThinkingIndicator />}
+            {aiState.plan && meta.status === 'succeeded' && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-3">
                     <div className="bg-emerald-50 dark:bg-emerald-900/20 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 text-sm font-medium">
                         <Target className="inline h-4 w-4 mr-2"/> {aiState.plan.goal}
@@ -409,9 +463,11 @@ const PlanAgent = () => {
                         ))}
                     </div>
                     <button onClick={handleAppendPlan} className="w-full py-2 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors">{t('aiPanel.actions.appendChecklist')}</button>
+                    <FeedbackButtons agentName="plan" current={meta.feedback} latency={meta.latency} />
                 </div>
             )}
             </div>
+            </ErrorBoundary>
         </AgentSection>
     );
 };
@@ -419,19 +475,20 @@ const PlanAgent = () => {
 const CreativeAgent = () => {
     const { t } = useLocale();
     const { aiState, runBrainstorm, localConfig, setConfig, collapsedSections, toggleSection, isApiKeySet } = useAiContext();
+    const meta = aiState.meta['brainstorm'];
 
     return (
         <AgentSection
             title={t('aiPanel.creative.title')}
             icon={<Lightbulb className="h-4 w-4 text-amber-500" />}
             onRun={runBrainstorm}
-            isLoading={aiState.loadingAgent === 'brainstorm'}
+            meta={meta}
             buttonText={t('aiPanel.creative.button')}
             isCollapsed={!!collapsedSections['creative']}
             onToggleCollapse={() => toggleSection('creative')}
             disabled={!isApiKeySet}
             settingsPopover={
-                <AgentSettingsPopover disabled={aiState.loadingAgent === 'brainstorm' || !isApiKeySet}>
+                <AgentSettingsPopover disabled={meta.status === 'loading' || !isApiKeySet}>
                     <div className="text-xs p-2 w-48 space-y-3">
                         <div>
                             <label className="text-xs font-semibold text-slate-500 uppercase mb-1.5 block">{t('aiPanel.settings.temperature')}</label>
@@ -453,8 +510,9 @@ const CreativeAgent = () => {
                 </AgentSettingsPopover>
             }
         >
+            <ErrorBoundary sectionName="Creative Agent">
             <div role="status" aria-live="polite" className="space-y-3">
-            {aiState.ideas && !aiState.isThinking && (
+            {aiState.ideas && meta.status === 'succeeded' && (
                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 space-y-2">
                 {aiState.ideas.map((idea, i) => 
                     <div key={i} className="group relative text-sm bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-100 dark:border-slate-800 shadow-sm flex items-start hover:border-amber-200 dark:hover:border-amber-900 transition-colors">
@@ -463,9 +521,11 @@ const CreativeAgent = () => {
                     <button onClick={() => navigator.clipboard.writeText(idea)} className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-slate-600 transition-opacity"><Copy className="h-3 w-3"/></button>
                     </div>
                 )}
+                <FeedbackButtons agentName="brainstorm" current={meta.feedback} latency={meta.latency} />
                 </div>
             )}
             </div>
+            </ErrorBoundary>
         </AgentSection>
     );
 };
@@ -473,19 +533,20 @@ const CreativeAgent = () => {
 const ImageAgent = () => {
     const { t } = useLocale();
     const { aiState, runImage, handleAppendImage, localConfig, setConfig, collapsedSections, toggleSection, isApiKeySet } = useAiContext();
+    const meta = aiState.meta['image'];
 
     return (
         <AgentSection
             title={t('aiPanel.image.title')}
             icon={<Image className="h-4 w-4 text-pink-500" />}
             onRun={runImage}
-            isLoading={aiState.loadingAgent === 'image'}
+            meta={meta}
             buttonText={t('aiPanel.image.button')}
             isCollapsed={!!collapsedSections['image']}
             onToggleCollapse={() => toggleSection('image')}
             disabled={!isApiKeySet}
             settingsPopover={
-                <AgentSettingsPopover disabled={aiState.loadingAgent === 'image' || !isApiKeySet}>
+                <AgentSettingsPopover disabled={meta.status === 'loading' || !isApiKeySet}>
                     <div className="text-xs p-2 w-56 space-y-3">
                         <div className="flex items-center justify-between">
                             <label className="text-xs font-semibold text-slate-500 uppercase">{t('aiPanel.settings.hdQuality')}</label>
@@ -509,29 +570,47 @@ const ImageAgent = () => {
                 </AgentSettingsPopover>
             }
         >
+            <ErrorBoundary sectionName="Image Agent">
             <div role="status" aria-live="polite">
-                {aiState.loadingAgent === 'image' && (
+                {meta.status === 'loading' && (
                     <div className={`mt-2 w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 animate-pulse flex flex-col items-center justify-center text-slate-500 ${aspectRatioStyles[localConfig.imageAspectRatio]}`}>
                         <Loader2 className="h-6 w-6 animate-spin text-pink-500" />
                         <p className="mt-2 text-xs font-medium">{t('aiPanel.image.generating')}</p>
                     </div>
                 )}
-                {aiState.image && (
+                {aiState.image && meta.status === 'succeeded' && (
                     <div className="mt-3 space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <div className={`rounded-xl overflow-hidden shadow-md border border-slate-200 dark:border-slate-800 relative group ${aspectRatioStyles[localConfig.imageAspectRatio]}`}>
                         <img src={`data:image/png;base64,${aiState.image.imageBytes}`} alt="Generated" className="w-full h-full object-cover" />
                         <button onClick={handleAppendImage} className="absolute bottom-2 right-2 bg-black/50 hover:bg-black/70 text-white p-1.5 rounded-lg backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all transform active:scale-90"><Plus className="h-4 w-4"/></button>
                     </div>
+                    <FeedbackButtons agentName="image" current={meta.feedback} latency={meta.latency} />
                     </div>
                 )}
             </div>
+            </ErrorBoundary>
         </AgentSection>
     );
 };
 
 const RecipesAgent = () => {
     const { t } = useLocale();
-    const { aiState, runRecipe, handleApplyRecipe, collapsedSections, toggleSection, isApiKeySet, isRecipeLoading } = useAiContext();
+    const { aiState, runRecipe, handleApplyRecipe, collapsedSections, toggleSection, isApiKeySet } = useAiContext();
+    
+    // Determine which recipe is loading
+    const recipeStatus = {
+        blog: aiState.meta['recipe-blog'].status === 'loading',
+        meeting: aiState.meta['recipe-meeting'].status === 'loading',
+        social: aiState.meta['recipe-social'].status === 'loading',
+    };
+
+    // Helper to get active recipe meta
+    const activeRecipeKey = aiState.recipeResult ? (
+        aiState.meta['recipe-blog'].lastRunAt ? 'recipe-blog' : 
+        aiState.meta['recipe-meeting'].lastRunAt ? 'recipe-meeting' : 'recipe-social'
+    ) : null;
+
+    const meta = activeRecipeKey ? aiState.meta[activeRecipeKey] : { feedback: null, latency: null, status: 'idle' };
 
     return (
         <AgentSection
@@ -541,18 +620,21 @@ const RecipesAgent = () => {
             isCollapsed={!!collapsedSections['recipes']}
             onToggleCollapse={() => toggleSection('recipes')}
         >
+            <ErrorBoundary sectionName="Recipes Agent">
             <div className="grid grid-cols-3 gap-2 mt-2">
-                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.blog.button')} onClick={() => runRecipe('blog')} isLoading={aiState.loadingAgent === 'recipe-blog'} disabled={!isApiKeySet} />
-                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.meeting.button')} onClick={() => runRecipe('meeting')} isLoading={aiState.loadingAgent === 'recipe-meeting'} disabled={!isApiKeySet}/>
-                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.social.button')} onClick={() => runRecipe('social')} isLoading={aiState.loadingAgent === 'recipe-social'} disabled={!isApiKeySet}/>
+                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.blog.button')} onClick={() => runRecipe('blog')} isLoading={recipeStatus.blog} disabled={!isApiKeySet} />
+                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.meeting.button')} onClick={() => runRecipe('meeting')} isLoading={recipeStatus.meeting} disabled={!isApiKeySet}/>
+                <RecipeButton icon={<Megaphone/>} text={t('aiPanel.recipes.social.button')} onClick={() => runRecipe('social')} isLoading={recipeStatus.social} disabled={!isApiKeySet}/>
             </div>
-            {aiState.recipeResult && !isRecipeLoading && (
-                <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800">
+            {aiState.recipeResult && !Object.values(recipeStatus).some(Boolean) && (
+                <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 animate-in fade-in slide-in-from-bottom-2">
                     <h4 className="font-bold text-sm mb-2">{aiState.recipeResult.title}</h4>
                     <div className="max-h-40 overflow-y-auto text-xs text-slate-600 dark:text-slate-400"><MarkdownResult content={aiState.recipeResult.content} /></div>
                     <button onClick={handleApplyRecipe} className="w-full mt-2 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">{t('aiPanel.actions.replaceNote')}</button>
+                    {activeRecipeKey && <FeedbackButtons agentName={activeRecipeKey} current={meta.feedback as AgentFeedback} latency={meta.latency as number} />}
                 </div>
             )}
+            </ErrorBoundary>
         </AgentSection>
     );
 };
@@ -565,13 +647,16 @@ const AiAgentPanel: React.FC<{ activeNote: Note | null }> = ({ activeNote }) => 
   
   if (!activeNote) return <div className="p-8 text-center text-slate-400 text-sm">{t('aiPanel.selectNote')}</div>;
 
+  // Helper to check if any agent has error
+  const activeError = Object.values(logic.aiState.meta).find(m => m.status === 'failed')?.error;
+
   return (
     <AiContext.Provider value={logic}>
         <div className="p-3 space-y-4 pb-20">
-            {logic.aiState.error && (
+            {activeError && (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 p-3 rounded-lg text-xs flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
                 <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                <p>{logic.aiState.error}</p>
+                <p>{activeError}</p>
                 </div>
             )}
 
@@ -620,23 +705,27 @@ const RecipeButton: React.FC<{icon: React.ReactNode, text: string, onClick: () =
     </button>
 );
 
-interface AgentSectionProps { title: string; icon: React.ReactNode; onRun?: () => void; isLoading?: boolean; buttonText?: string; children: React.ReactNode; hideRunButton?: boolean; isCollapsed: boolean; onToggleCollapse: () => void; disabled?: boolean; settingsPopover?: React.ReactNode; }
-const AgentSection: React.FC<AgentSectionProps> = ({ title, icon, onRun, isLoading, buttonText, children, hideRunButton=false, isCollapsed, onToggleCollapse, disabled, settingsPopover }) => (
-    <div className={`bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-300 ${isCollapsed ? 'hover:border-slate-300 dark:hover:border-slate-700' : 'shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-100/5'}`}>
-        <button onClick={onToggleCollapse} className="w-full flex justify-between items-center p-3 cursor-pointer select-none">
-            <h3 className="text-sm font-semibold flex items-center gap-3 text-slate-800 dark:text-slate-200"><div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg">{icon}</div> {title}</h3>
-            <div className="flex items-center gap-2">
-                {settingsPopover}
-                 {!hideRunButton && onRun && (
-                    <button onClick={(e) => { e.stopPropagation(); onRun(); }} disabled={isLoading || disabled} className="px-3 py-1.5 text-xs font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
-                        {buttonText}
-                </button>
-                )}
-                <ChevronLeft className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isCollapsed ? 'rotate-0' : '-rotate-90'}`} />
-            </div>
-        </button>
-        <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}><div className="overflow-hidden"><div className="p-3 pt-0 border-t border-transparent">{children}</div></div></div>
-    </div>
-);
+interface AgentSectionProps { title: string; icon: React.ReactNode; onRun?: () => void; meta?: AgentMeta; buttonText?: string; children: React.ReactNode; hideRunButton?: boolean; isCollapsed: boolean; onToggleCollapse: () => void; disabled?: boolean; settingsPopover?: React.ReactNode; }
+const AgentSection: React.FC<AgentSectionProps> = ({ title, icon, onRun, meta, buttonText, children, hideRunButton=false, isCollapsed, onToggleCollapse, disabled, settingsPopover }) => {
+    const isLoading = meta?.status === 'loading';
+    
+    return (
+        <div className={`bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl transition-all duration-300 ${isCollapsed ? 'hover:border-slate-300 dark:hover:border-slate-700' : 'shadow-sm ring-1 ring-slate-900/5 dark:ring-slate-100/5'}`}>
+            <button onClick={onToggleCollapse} className="w-full flex justify-between items-center p-3 cursor-pointer select-none">
+                <h3 className="text-sm font-semibold flex items-center gap-3 text-slate-800 dark:text-slate-200"><div className="p-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg">{icon}</div> {title}</h3>
+                <div className="flex items-center gap-2">
+                    {settingsPopover}
+                    {!hideRunButton && onRun && (
+                        <button onClick={(e) => { e.stopPropagation(); onRun(); }} disabled={isLoading || disabled} className="px-3 py-1.5 text-xs font-medium bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full hover:opacity-90 disabled:opacity-50 flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
+                            {isLoading ? <Loader2 className="h-3 w-3 animate-spin"/> : buttonText}
+                    </button>
+                    )}
+                    <ChevronLeft className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${isCollapsed ? 'rotate-0' : '-rotate-90'}`} />
+                </div>
+            </button>
+            <div className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${isCollapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}><div className="overflow-hidden"><div className="p-3 pt-0 border-t border-transparent">{children}</div></div></div>
+        </div>
+    );
+}
 
 export default AiAgentPanel;

@@ -70,8 +70,21 @@ export type AiAgentData =
     | AiRecipeResult;
 
 export interface ChatMessage {
+    id: string;
     role: 'user' | 'model';
     text: string;
+    timestamp: number;
+}
+
+export type AgentStatus = 'idle' | 'loading' | 'succeeded' | 'failed';
+export type AgentFeedback = 'positive' | 'negative' | null;
+
+export interface AgentMeta {
+    status: AgentStatus;
+    error: string | null;
+    latency: number | null;
+    feedback: AgentFeedback;
+    lastRunAt: number | null;
 }
 
 export interface AiAgentSettings {

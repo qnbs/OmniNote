@@ -266,24 +266,31 @@ export const selectFilteredNotes = createSelector(
 export const selectAllTasks = createSelector(
     [selectAllNotes],
     (notes) => {
-        const taskRegex = /^- \[( |x)\] (.*?)(?:\s@\{(\d{4}-\d{2}-\d{2})\})?$/;
+        // Robust regex to capture:
+        // 1. Indentation (\s*)
+        // 2. Status [ ] or [x]
+        // 3. Text content
+        // 4. Optional Due Date @{YYYY-MM-DD}
+        // 5. Allows trailing spaces
+        const taskRegex = /^(\s*)- \[( |x)\] (.*?)(?:\s+@\{(\d{4}-\d{2}-\d{2})\})?\s*$/;
+        
         const allTasks: Task[] = [];
         
         notes.forEach(note => {
           const lines = note.content.split('\n');
           lines.forEach((line, index) => {
-            if (!line.trim().startsWith('- [')) return;
+            // match() matches against string, but regex is anchored ^ to start of line
             const match = line.match(taskRegex);
             if (match) {
               allTasks.push({
                 id: `${note.id}-${index}`,
-                text: match[2].trim(),
-                done: match[1] === 'x',
+                text: match[3].trim(), // Group 3 is text
+                done: match[2] === 'x', // Group 2 is status
                 noteId: note.id,
                 noteTitle: note.title || 'Untitled',
                 rawLine: line,
                 lineIndex: index,
-                dueDate: match[3]
+                dueDate: match[4] // Group 4 is date
               });
             }
           });

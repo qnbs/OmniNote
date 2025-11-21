@@ -1,11 +1,22 @@
 
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
-import { AiAgentData, AdvancedAnalysisResult, BrainstormSuggestion, StrategicPlanResult, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult, ChatMessage } from '../../core/types/ai';
+import { AiAgentData, AdvancedAnalysisResult, BrainstormSuggestion, StrategicPlanResult, ResearchSuggestion, TranslateSuggestion, FormatSuggestion, ImageSuggestion, AiRecipeResult, ChatMessage, AgentMeta, AgentFeedback } from '../../core/types/ai';
 import * as geminiService from '../../services/geminiService';
 
+// Helper to create initial meta state
+const createInitialMeta = (): AgentMeta => ({
+    status: 'idle',
+    error: null,
+    latency: null,
+    feedback: null,
+    lastRunAt: null
+});
+
 interface AiState {
-    loadingAgent: string | null;
-    error: string | null;
+    // Meta data for each agent type
+    meta: Record<string, AgentMeta>;
+    
+    // Data slots
     analysis: AdvancedAnalysisResult | null;
     ideas: string[] | null;
     plan: StrategicPlanResult | null;
@@ -14,13 +25,29 @@ interface AiState {
     formatted: FormatSuggestion | null;
     image: ImageSuggestion | null;
     recipeResult: AiRecipeResult | null;
+    
+    // Chat
     chatMessages: ChatMessage[];
     isThinking: boolean;
+    
+    // Cache (Key: noteId -> State Snapshot)
+    cache: Record<string, Partial<AiState>>;
 }
 
 const initialState: AiState = {
-    loadingAgent: null,
-    error: null,
+    meta: {
+        analysis: createInitialMeta(),
+        brainstorm: createInitialMeta(),
+        plan: createInitialMeta(),
+        research: createInitialMeta(),
+        translate: createInitialMeta(),
+        format: createInitialMeta(),
+        image: createInitialMeta(),
+        'recipe-blog': createInitialMeta(),
+        'recipe-meeting': createInitialMeta(),
+        'recipe-social': createInitialMeta(),
+        chat: createInitialMeta(),
+    },
     analysis: null,
     ideas: null,
     plan: null,
@@ -31,6 +58,7 @@ const initialState: AiState = {
     recipeResult: null,
     chatMessages: [],
     isThinking: false,
+    cache: {},
 };
 
 export const runAiAgent = createAsyncThunk(
@@ -40,11 +68,20 @@ export const runAiAgent = createAsyncThunk(
         task: () => Promise<AiAgentData>; 
         isThinking?: boolean 
     }, { rejectWithValue }) => {
+        const startTime = Date.now();
         try {
             const result = await payload.task();
-            return { agentName: payload.agentName, result };
+            const endTime = Date.now();
+            return { 
+                agentName: payload.agentName, 
+                result, 
+                latency: endTime - startTime 
+            };
         } catch (error: any) {
-            return rejectWithValue(error.message || 'AI Agent failed');
+            return rejectWithValue({ 
+                agentName: payload.agentName, 
+                error: error.message || 'AI Agent failed' 
+            });
         }
     }
 );
@@ -79,7 +116,22 @@ const aiSlice = createSlice({
     name: 'ai',
     initialState,
     reducers: {
-        resetAiState: (state) => {
+        resetAiState: (state, action: PayloadAction<{ noteId?: string }>) => {
+            // If we have a noteId, try to load from cache
+            if (action.payload.noteId && state.cache[action.payload.noteId]) {
+                const cached = state.cache[action.payload.noteId];
+                // Merge cached state
+                state.analysis = cached.analysis || null;
+                state.ideas = cached.ideas || null;
+                state.plan = cached.plan || null;
+                state.image = cached.image || null;
+                state.recipeResult = cached.recipeResult || null;
+                state.meta = { ...initialState.meta, ...(cached.meta || {}) };
+                state.chatMessages = cached.chatMessages || [];
+                return;
+            }
+
+            // Otherwise reset to initial
             state.analysis = null;
             state.ideas = null;
             state.plan = null;
@@ -88,11 +140,29 @@ const aiSlice = createSlice({
             state.formatted = null;
             state.image = null;
             state.recipeResult = null;
-            state.error = null;
-            state.loadingAgent = null;
+            
+            // Reset metas but keep keys
+            Object.keys(state.meta).forEach(key => {
+                state.meta[key] = createInitialMeta();
+            });
+            
+            state.chatMessages = [];
+            state.isThinking = false;
+        },
+        saveToCache: (state, action: PayloadAction<{ noteId: string }>) => {
+            state.cache[action.payload.noteId] = {
+                analysis: state.analysis,
+                ideas: state.ideas,
+                plan: state.plan,
+                image: state.image,
+                recipeResult: state.recipeResult,
+                meta: state.meta,
+                chatMessages: state.chatMessages
+            };
         },
         clearChat: (state) => {
             state.chatMessages = [];
+            state.meta['chat'] = createInitialMeta();
         },
         addChatMessage: (state, action: PayloadAction<ChatMessage>) => {
             state.chatMessages.push(action.payload);
@@ -104,19 +174,30 @@ const aiSlice = createSlice({
                     lastMsg.text += action.payload;
                 }
             }
+        },
+        setAgentFeedback: (state, action: PayloadAction<{ agentName: string, feedback: AgentFeedback }>) => {
+            if (state.meta[action.payload.agentName]) {
+                state.meta[action.payload.agentName].feedback = action.payload.feedback;
+            }
         }
     },
     extraReducers: (builder) => {
         builder
             .addCase(runAiAgent.pending, (state, action) => {
-                state.loadingAgent = action.meta.arg.agentName;
-                state.error = null;
+                const agentName = action.meta.arg.agentName;
+                if (!state.meta[agentName]) state.meta[agentName] = createInitialMeta();
+                state.meta[agentName].status = 'loading';
+                state.meta[agentName].error = null;
+                state.meta[agentName].latency = null;
                 state.isThinking = !!action.meta.arg.isThinking;
             })
             .addCase(runAiAgent.fulfilled, (state, action) => {
-                state.loadingAgent = null;
+                const { agentName, result, latency } = action.payload;
+                state.meta[agentName].status = 'succeeded';
+                state.meta[agentName].latency = latency;
+                state.meta[agentName].lastRunAt = Date.now();
                 state.isThinking = false;
-                const { agentName, result } = action.payload;
+                
                 switch(agentName) {
                     case 'analysis': state.analysis = result as AdvancedAnalysisResult; break;
                     case 'brainstorm': state.ideas = (result as BrainstormSuggestion).ideas; break;
@@ -132,24 +213,34 @@ const aiSlice = createSlice({
                 }
             })
             .addCase(runAiAgent.rejected, (state, action) => {
-                state.loadingAgent = null;
+                const payload = action.payload as { agentName: string; error: string };
+                const agentName = payload?.agentName || action.meta.arg.agentName;
+                const errorMsg = payload?.error || action.error.message || 'Unknown error';
+                
+                if (!state.meta[agentName]) state.meta[agentName] = createInitialMeta();
+                state.meta[agentName].status = 'failed';
+                state.meta[agentName].error = errorMsg;
                 state.isThinking = false;
-                state.error = action.payload as string;
             })
             .addCase(streamChat.pending, (state) => {
-                state.loadingAgent = 'chat';
-                state.error = null;
-                state.chatMessages.push({ role: 'model', text: '' });
+                state.meta['chat'].status = 'loading';
+                state.meta['chat'].error = null;
+                state.chatMessages.push({ 
+                    id: Date.now().toString(), 
+                    role: 'model', 
+                    text: '', 
+                    timestamp: Date.now() 
+                });
             })
             .addCase(streamChat.fulfilled, (state) => {
-                state.loadingAgent = null;
+                state.meta['chat'].status = 'succeeded';
             })
             .addCase(streamChat.rejected, (state, action) => {
-                state.loadingAgent = null;
-                state.error = action.payload as string;
+                state.meta['chat'].status = 'failed';
+                state.meta['chat'].error = action.payload as string;
             });
     }
 });
 
-export const { resetAiState, clearChat, addChatMessage, updateLastChatMessage } = aiSlice.actions;
+export const { resetAiState, clearChat, addChatMessage, updateLastChatMessage, setAgentFeedback, saveToCache } = aiSlice.actions;
 export default aiSlice.reducer;

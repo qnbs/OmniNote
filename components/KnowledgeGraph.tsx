@@ -1,7 +1,7 @@
 
 import React, { useEffect, useRef, useMemo, useCallback } from 'react';
 import { select } from 'd3-selection';
-import { forceSimulation, forceLink, forceManyBody, forceCenter, Simulation, ForceLink } from 'd3-force';
+import { forceSimulation, forceLink, forceManyBody, forceCenter, Simulation, ForceLink, forceCollide } from 'd3-force';
 import { drag, D3DragEvent } from 'd3-drag';
 import { zoom, D3ZoomEvent } from 'd3-zoom';
 import { Note, GraphNode, GraphLink } from '../types';
@@ -161,11 +161,14 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
     svg.append("g").each(function() { gRef.current = this as SVGGElement; });
     const g = select(gRef.current);
 
+    // Physics Optimization: Slightly faster decay and collision prevention
     simulationRef.current = forceSimulation<GraphNode, GraphLink>([])
       .force('link', forceLink<GraphNode, GraphLink>().id(d => d.id))
       .force('charge', forceManyBody())
       .force('center', forceCenter(0, 0))
-      .alphaMin(0.01) // Keep the graph alive with subtle motion
+      .force('collide', forceCollide(d => d.radius + 20).strength(0.5)) // Prevents node text overlap
+      .alphaDecay(0.06) // Faster stabilization
+      .alphaMin(0.001)
       .on('tick', () => {
         g.selectAll('.node').attr('transform', d => `translate(${(d as GraphNode).x},${(d as GraphNode).y})`);
         g.selectAll('.link')
@@ -192,6 +195,7 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ notes, onNodeClick, act
             .attr('height', height)
             .attr('viewBox', [-width / 2, -height / 2, width, height]);
         simulationRef.current?.force('center', forceCenter(0, 0));
+        simulationRef.current?.alpha(0.3).restart();
       });
     });
 
