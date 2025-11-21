@@ -4,22 +4,20 @@
 # OmniNote 🧠✨
 ### The Cognitive Operating System for the Intelligence Era
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/qnbs/OmniNote)
+
 ![Version](https://img.shields.io/badge/version-2.0.0-blue.svg?style=for-the-badge&color=0ea5e9)
 ![License](https://img.shields.io/badge/license-MIT-green.svg?style=for-the-badge&color=22c55e)
 ![Status](https://img.shields.io/badge/status-Production_Grade-orange.svg?style=for-the-badge&color=f59e0b)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-success?style=for-the-badge&color=10b981)
-
 <br />
-
 ![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
 ![Redux Toolkit](https://img.shields.io/badge/Redux_Toolkit-593D88?style=for-the-badge&logo=redux&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript_5-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite_6-B73C9D?style=for-the-badge&logo=vite&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Google_Gemini_2.5-8E75B2?style=for-the-badge&logo=google-bard&logoColor=white)
 ![Tailwind](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
-
 <br />
-
 <p align="center">
   <strong>OmniNote</strong> is not merely a note-taking application; it is a <strong>Local-First Second Brain</strong> designed to augment human cognition. By fusing structured data management with a sophisticated force-directed knowledge graph and an orchestrated swarm of AI agents, OmniNote transforms passive text storage into active knowledge engineering.
 </p>
