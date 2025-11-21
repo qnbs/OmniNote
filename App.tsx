@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useCallback, createContext, useContext } from 'react';
 import { Note, ImportData } from './types';
 import NoteList from './components/NoteList';
@@ -115,9 +116,9 @@ const useAppLogic = () => {
   const handleDeleteRequest = useCallback((note: Note, triggerElement: HTMLElement) => {
     dispatch(openModal({ 
         type: 'deleteConfirm', 
-        props: { note, onConfirm: () => confirmDelete(note) }
+        props: { note }
     }));
-  }, [dispatch, confirmDelete]);
+  }, [dispatch]);
 
   const handleExport = useCallback((exportType: 'all' | 'notes' | 'templates' | 'settings') => {
     try {
@@ -163,6 +164,7 @@ const useAppLogic = () => {
       handleShowCommandPalette,
       handleDeleteRequest,
       handleExport,
+      confirmDelete,
       setSearchQuery: (q: string) => dispatch(setSearchQuery(q)),
       togglePinNote: (id: string) => { const n = allNotes.find(x=>x.id===id); if(n) dispatch(togglePinNote(n)); },
       setSidebarOpen: (open: boolean) => dispatch(setSidebarOpen(open)),
@@ -188,7 +190,7 @@ const useAppContext = () => {
 // --- Components ---
 
 const LeftSidebar = () => {
-    const { ui, t, setLeftSidebarView, notes, activeNoteId, handleSelectNote, handleAddNote, handleDeleteRequest, togglePinNote, searchQuery, setSearchQuery, allNotes, handleShowCommandPalette, helpButtonRef, openModal, settingsButtonRef, handleExport, importData } = useAppContext();
+    const { ui, t, setLeftSidebarView, notes, activeNoteId, handleSelectNote, handleAddNote, handleDeleteRequest, togglePinNote, searchQuery, setSearchQuery, allNotes, handleShowCommandPalette, helpButtonRef, openModal, settingsButtonRef } = useAppContext();
     
     return (
         <div className={`
@@ -211,7 +213,7 @@ const LeftSidebar = () => {
                 <button ref={helpButtonRef} onClick={() => openModal({ type: 'help' })} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                   <HelpCircle className="h-5 w-5" />
                 </button>
-                <button ref={settingsButtonRef} onClick={() => openModal({ type: 'settings', props: { onExport: handleExport, onImport: importData } })} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
+                <button ref={settingsButtonRef} onClick={() => openModal({ type: 'settings' })} className="p-2 rounded-full text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
                   <Settings className="h-5 w-5" />
                 </button>
                 <ThemeToggle />
@@ -273,14 +275,14 @@ const MainContent = () => {
 }
 
 const GlobalModals = () => {
-    const { ui, closeModal, handleExport, importData, notes, activeNote, handleSelectNote, handleAddNote, setTheme, theme, openModal, addToast, setRightSidebarView, setSidebarOpen, t } = useAppContext();
+    const { ui, closeModal, handleExport, importData, notes, activeNote, handleSelectNote, handleAddNote, setTheme, theme, openModal, addToast, setRightSidebarView, setSidebarOpen, t, confirmDelete } = useAppContext();
     
     return (
         <>
-            {ui.modal.isOpen && ui.modal.type === 'deleteConfirm' && <ConfirmDeleteModal isOpen={true} onClose={closeModal} {...ui.modal.props} />}
-            {ui.modal.isOpen && ui.modal.type === 'settings' && <SettingsModal isOpen={true} onClose={closeModal} {...ui.modal.props} />}
+            {ui.modal.isOpen && ui.modal.type === 'deleteConfirm' && <ConfirmDeleteModal isOpen={true} onClose={closeModal} note={ui.modal.props.note} onConfirm={() => confirmDelete(ui.modal.props.note)} />}
+            {ui.modal.isOpen && ui.modal.type === 'settings' && <SettingsModal isOpen={true} onClose={closeModal} onExport={handleExport} onImport={importData} />}
             {ui.modal.isOpen && ui.modal.type === 'help' && <HelpCenter isOpen={true} onClose={closeModal} />}
-            {ui.modal.isOpen && ui.modal.type === 'commandPalette' && <CommandPalette isOpen={true} onClose={closeModal} notes={notes} activeNote={activeNote} onSelectNote={handleSelectNote} onAddNote={handleAddNote} onToggleTheme={() => setTheme(theme==='light'?'dark':'light')} onShowSettings={() => openModal({type:'settings', props: {onExport: handleExport, onImport: importData}})} onShowHelp={() => openModal({type:'help'})} onTriggerAiAgent={(name) => { 
+            {ui.modal.isOpen && ui.modal.type === 'commandPalette' && <CommandPalette isOpen={true} onClose={closeModal} notes={notes} activeNote={activeNote} onSelectNote={handleSelectNote} onAddNote={handleAddNote} onToggleTheme={() => setTheme(theme==='light'?'dark':'light')} onShowSettings={() => openModal({type:'settings'})} onShowHelp={() => openModal({type:'help'})} onTriggerAiAgent={(name) => { 
                 setRightSidebarView('ai'); 
                 setSidebarOpen(true); 
                 addToast({message: t('toast.aiAgentTriggered', { agentName: name }), type:'info'}); 

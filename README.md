@@ -21,10 +21,10 @@
 <br />
 
 <p align="center">
-  <strong>OmniNote</strong> is not merely a note-taking application; it is a <strong>Second Brain architecture</strong> designed to augment human cognition. By fusing structured data management with a sophisticated force-directed knowledge graph and an orchestrated swarm of Large Language Model (LLM) agents, OmniNote transforms passive text storage into active knowledge engineering.
+  <strong>OmniNote</strong> is not merely a note-taking application; it is a <strong>Local-First Second Brain</strong> designed to augment human cognition. By fusing structured data management with a sophisticated force-directed knowledge graph and an orchestrated swarm of AI agents, OmniNote transforms passive text storage into active knowledge engineering.
 </p>
 
-[Features](#-core-capabilities) • [Architecture](#-system-architecture) • [AI Swarm](#-ai-agent-swarm) • [Getting Started](#-getting-started) • [Documentation](#-documentation)
+[Features](#-core-capabilities) • [Architecture](#-system-architecture) • [AI Swarm](#-ai-agent-swarm) • [Getting Started](#-getting-started)
 
 </div>
 
@@ -35,7 +35,7 @@
 In an era of cloud dependency, OmniNote takes a radical stance on **Data Sovereignty** and **Zero-Latency Interaction**.
 
 1.  **Local-First Architecture**: The application state lives primarily in the user's browser (IndexedDB via Redux persistence). Cloud AI is treated as a stateless functional utility, invoked only on demand.
-2.  **Structured Thought**: We enforce structure on unstructured text via Markdown, Entity Extraction, and graph topology, allowing the system to understand the *relationships* between ideas, not just the content.
+2.  **Structured Thought**: We enforce structure on unstructured text via Markdown, Entity Extraction, and graph topology, allowing the system to understand the *relationships* between ideas.
 3.  **Agentic Workflow**: AI is not a chatbot sidebar; it is integrated into the data layer. Agents act as background processes that analyze, summarize, and connect your thoughts.
 
 ---
@@ -43,27 +43,27 @@ In an era of cloud dependency, OmniNote takes a radical stance on **Data Soverei
 ## ⚡ Core Capabilities
 
 ### 🕸️ Topological Knowledge Graph
-Powered by **D3.js**, the graph view is not a static image but a physics-simulation engine.
-*   **Force-Directed Layout**: Nodes repel each other while links act as springs, naturally clustering related concepts.
+Powered by **D3.js**, the graph view is a physics-simulation engine.
+*   **Force-Directed Layout**: Nodes repel each other while links act as springs, clustering related concepts.
 *   **Semantic Clustering**: Connections are formed explicitly via `[[Wiki-Links]]` and implicitly via shared `#tags`.
-*   **Dynamic Scaling**: Node radius and link opacity react dynamically to content volume and active focus states.
+*   **Interactive Dynamics**: Real-time zoom, pan, and drag capabilities with automatic collision detection.
 
 ### 📝 The Hyper-Text Editor
-A bespoke editor engine built on top of standard text inputs but augmented for power users.
-*   **GFM Support**: Full GitHub Flavored Markdown support with real-time syntax highlighting.
+A bespoke editor engine built for power users.
+*   **GFM Support**: Full GitHub Flavored Markdown support with real-time syntax highlighting (`highlight.js`).
 *   **Smart Parsing**: Regex-based detection of tasks (`- [ ]`) and dates (`@{YYYY-MM-DD}`) for aggregation into the Task View.
-*   **Bi-Directional Linking**: Type `[[` to trigger an Intellisense-like autocomplete for existing notes.
+*   **Bi-Directional Linking**: Type `[[` to trigger Intellisense-like autocomplete for linking existing notes.
 
-### 🎨 Adaptive Glassmorphism UI
-*   **Visual Hierarchy**: Uses translucent backdrops and distinct elevation layers to manage information density.
-*   **Responsive Design**: A fluid layout that transitions from a mobile-first drawer navigation to a desktop multi-pane dashboard.
-*   **Dark Mode Engine**: A semantic color system that adapts automatically to system preferences.
+### 🤖 AI Orchestration
+*   **Multi-Modal Agents**: Text generation, image synthesis, and strategic planning.
+*   **Context-Aware**: Agents read the current note context to provide relevant outputs.
+*   **Privacy-Focused**: Data is sent to the API *only* when you explicitly trigger an agent.
 
 ---
 
 ## 🏗️ System Architecture
 
-OmniNote employs a sophisticated **Feature-Sliced** Redux architecture to manage complex state with high performance.
+OmniNote employs a sophisticated **Feature-Sliced** Redux architecture to manage complex state with high performance and scalability.
 
 ```mermaid
 graph TD
@@ -71,8 +71,9 @@ graph TD
     Components --> Hooks[Custom Logic Hooks]
     Hooks --> Actions[Redux Actions]
     
-    subgraph "State Management Layer"
-        Actions --> Reducers[Slice Reducers]
+    subgraph "State Management (Redux Toolkit)"
+        Actions --> Slices[Feature Slices]
+        Slices --> Reducers[Reducers]
         Reducers --> Store[Global Store]
         Store --> Selectors[Reselect Memoized Selectors]
         Selectors --> Components
@@ -93,16 +94,16 @@ graph TD
     end
 ```
 
-### Key Technical Patterns
+### Technical Implementation Details
 
-1.  **Logic/UI Separation**: 
-    Every complex component follows a strict separation of concerns. Visual components are purely presentational, receiving data and callbacks from a dedicated Custom Hook (`useNoteEditor`, `useAiAgentPanel`). This hook interfaces with the Redux store.
+1.  **Logic/UI Separation Pattern**: 
+    Components are strictly presentational. Logic is encapsulated in custom hooks (e.g., `useNoteEditor`, `useAiAgentPanel`) which interface exclusively with Redux hooks (`useAppDispatch`, `useAppSelector`). This decouples the UI from business logic.
     
-2.  **Normalized State (Entity Adapters)**:
-    Notes and Templates are stored using `@reduxjs/toolkit`'s `createEntityAdapter`. This normalizes data into `{ ids: [], entities: {} }` structures, ensuring `O(1)` access times and preventing unnecessary re-renders in large lists.
+2.  **Normalized State with Entity Adapters**:
+    Notes and Templates are stored using `@reduxjs/toolkit`'s `createEntityAdapter`. This normalizes data into `{ ids: [], entities: {} }` structures, ensuring `O(1)` CRUD operations and preventing unnecessary re-renders in large lists.
 
-3.  **Optimistic UI Updates**:
-    The application updates the UI immediately upon user action (e.g., typing, checking a task) while asynchronously syncing with IndexedDB and LocalStorage via Redux Listener Middleware.
+3.  **Middleware-Based Persistence**:
+    Instead of `useEffect` chains, we use Redux Listener Middleware to intercept specific actions (like `addNote`, `updateNote`) and persist changes to IndexedDB asynchronously, keeping the UI thread unblocked.
 
 ---
 
@@ -110,20 +111,13 @@ graph TD
 
 OmniNote orchestrates a suite of specialized AI agents. We utilize **System Instruction Engineering** and **Strict JSON Schemas** to force the LLM into specific cognitive roles.
 
-| Agent | Model / Config | Cognitive Role |
+| Agent | Model | Cognitive Role |
 | :--- | :--- | :--- |
 | **The Analyst** | `gemini-2.5-flash` | **Semantic Extraction**. Analyzes text complexity, sentiment, and extracts key entities (People, Places) and taxonomy tags. |
-| **The Strategist** | `gemini-3-pro-preview` | **Reasoning Engine**. Uses a higher token budget for "Thinking" to decompose unstructured notes into hierarchical, strategic action plans (MECE frameworks). |
-| **The Creative** | `gemini-2.5-flash` | **Divergent Thinking**. Runs with high temperature (0.9) to generate lateral thinking suggestions and brainstorms. |
-| **The Visualizer** | `gemini-pro-image` | **Multimodal Synthesis**. Converts textual concepts into visual representations (images) using varying artistic styles. |
-| **The Researcher** | `gemini-flash` + `Tools` | **Grounding**. Connects to Google Search to validate claims within notes and find external citations. |
+| **The Strategist** | `gemini-3-pro-preview` | **Reasoning Engine**. Uses a higher "Thinking Budget" to decompose unstructured notes into hierarchical, strategic action plans. |
+| **The Creative** | `gemini-2.5-flash` | **Divergent Thinking**. Runs with high temperature to generate lateral thinking suggestions and brainstorms. |
+| **The Visualizer** | `gemini-3-pro-image` | **Multimodal Synthesis**. Converts textual concepts into visual representations (images) using varying artistic styles. |
 | **The Recipes** | `gemini-2.5-flash` | **Workflow Automation**. Pre-compiled prompt chains that execute complex transformations (e.g., "Meeting Notes" -> "Executive Briefing"). |
-
-### Prompt Engineering Strategy
-We do not simply send text to the API. We wrap user content in sophisticated wrappers:
-1.  **Persona Injection**: *"Adopt the persona of a McKinsey Strategy Consultant..."*
-2.  **Context Windowing**: Efficiently truncating history to fit within context windows while maintaining relevance.
-3.  **Schema Enforcement**: All agents (except Chat) return strict JSON, allowing the UI to render custom widgets (Checklists, Tag Clouds) rather than raw text.
 
 ---
 
@@ -133,7 +127,7 @@ We do not simply send text to the API. We wrap user content in sophisticated wra
 *   **Node.js** v18+
 *   **Google AI Studio API Key** (Required for AI features)
 
-### Installation & Develpment
+### Installation
 
 1.  **Clone the Repository**
     ```bash
@@ -147,7 +141,7 @@ We do not simply send text to the API. We wrap user content in sophisticated wra
     ```
 
 3.  **Environment Configuration**
-    Create a `.env` file in the root directory. You must obtain an API key from [Google AI Studio](https://aistudio.google.com/).
+    Create a `.env` file in the root directory:
     ```env
     API_KEY=your_google_gemini_api_key
     ```
@@ -158,29 +152,17 @@ We do not simply send text to the API. We wrap user content in sophisticated wra
     ```
 
 5.  **Production Build**
-    The build process uses Vite to compile TypeScript and optimize assets.
     ```bash
     npm run build
     ```
 
 ---
 
-## 🗺️ Roadmap
-
-*   **v2.1**: Vector Embeddings for Semantic Search (RAG).
-*   **v2.2**: Voice-to-Text with speaker diarization via Gemini 1.5 Pro Audio.
-*   **v2.3**: Collaborative real-time editing (CRDTs via Y.js).
-*   **v3.0**: Native Mobile Wrappers (React Native / Capacitor).
-
----
-
 ## ⚖️ License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License.
 
 <div align="center">
   <br />
-  <sub>Built with precision engineering by a Senior Frontend Engineer.</sub>
-  <br />
-  <sub><i>"The computer is the most remarkable tool that we have ever come up with. It's the equivalent of a bicycle for our minds." — Steve Jobs</i></sub>
+  <sub>Built with React 19, Redux Toolkit, and Google Gemini.</sub>
 </div>
